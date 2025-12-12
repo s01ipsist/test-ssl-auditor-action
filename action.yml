@@ -1,0 +1,37 @@
+name: 'SSL Auditor'
+description: 'Audit testssl.sh JSON results against configurable security rules'
+author: 's01ipsist'
+
+inputs:
+  results-path:
+    description: 'Path or glob pattern to testssl.sh JSON result files (e.g., testssl_results_*.json)'
+    required: true
+    default: 'testssl_results_*.json'
+  
+  rules-config:
+    description: 'Path to rules configuration file (JSON or YAML)'
+    required: false
+    default: '.testssl-rules.json'
+  
+  fail-on-violation:
+    description: 'Whether to fail the action if rule violations are found'
+    required: false
+    default: 'true'
+
+outputs:
+  violations-found:
+    description: 'Whether any rule violations were found (true/false)'
+  
+  violation-count:
+    description: 'Number of rule violations found'
+  
+  summary:
+    description: 'Summary of the audit results'
+
+runs:
+  using: 'node20'
+  main: 'dist/index.js'
+
+branding:
+  icon: 'check-shield'
+  color: 'blue'
