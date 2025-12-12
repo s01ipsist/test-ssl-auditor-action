@@ -1,0 +1,29 @@
+# Node.js
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Build outputs
+lib/
+*.tsbuildinfo
+
+# Note: dist/ is NOT ignored because GitHub Actions need the compiled code
+# Note: package-lock.json is NOT ignored for CI/CD reproducibility
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test coverage
+coverage/
+
+# Temporary files
+*.tmp
+.env
