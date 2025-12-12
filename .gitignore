@@ -2,13 +2,13 @@
 node_modules/
 npm-debug.log
 yarn-error.log
-package-lock.json
 
 # Build outputs
 lib/
 *.tsbuildinfo
 
 # Note: dist/ is NOT ignored because GitHub Actions need the compiled code
+# Note: package-lock.json is NOT ignored for CI/CD reproducibility
 
 # IDE
 .vscode/

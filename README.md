@@ -112,7 +112,7 @@ Create a `.testssl-rules.json` file in your repository to configure audit rules:
       "MD5"
     ],
     "requireForwardSecrecy": true,
-    "maxCertificateExpiry": 90,
+    "maxCertificateExpiry": 14,
     "minGrade": "B"
   }
 }

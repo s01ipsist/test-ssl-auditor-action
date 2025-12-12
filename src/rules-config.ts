@@ -24,7 +24,7 @@ export const DEFAULT_RULES: RulesConfig = {
     allowedCiphers: [],
     blockedCiphers: ['RC4', 'DES', '3DES', 'NULL', 'EXPORT', 'anon'],
     requireForwardSecrecy: true,
-    maxCertificateExpiry: 90,
+    maxCertificateExpiry: 14,
     minGrade: undefined // No grade requirement by default
   }
 };
