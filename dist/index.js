@@ -28290,14 +28290,7 @@ async function run() {
         }
         catch (error) {
             core.warning(`Could not load rules config from ${rulesConfigPath}, using defaults`);
-            rulesConfig = {
-                rules: {
-                    minTlsVersion: '1.2',
-                    allowedCiphers: [],
-                    blockedCiphers: [],
-                    requireForwardSecrecy: true
-                }
-            };
+            rulesConfig = rules_config_1.DEFAULT_RULES;
         }
         // Process each file
         const auditEngine = new audit_engine_1.AuditEngine(rulesConfig);

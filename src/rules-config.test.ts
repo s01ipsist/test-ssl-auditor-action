@@ -1,4 +1,4 @@
-import { loadRulesConfig, DEFAULT_RULES } from '../src/rules-config';
+import { loadRulesConfig, DEFAULT_RULES } from './rules-config';
 import { writeFile, unlink } from 'fs/promises';
 import { join } from 'path';
 
@@ -44,8 +44,6 @@ describe('loadRulesConfig', () => {
     const config = await loadRulesConfig(testConfigPath);
 
     expect(config.rules.minTlsVersion).toBe('1.3');
-    expect(config.rules.requireForwardSecrecy).toBe(
-      DEFAULT_RULES.rules.requireForwardSecrecy
-    );
+    expect(config.rules.requireForwardSecrecy).toBe(DEFAULT_RULES.rules.requireForwardSecrecy);
   });
 });

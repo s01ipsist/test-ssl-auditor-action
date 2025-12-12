@@ -2,7 +2,7 @@ import * as core from '@actions/core';
 import * as glob from '@actions/glob';
 import { readFile } from 'fs/promises';
 import { AuditEngine } from './audit-engine';
-import { RulesConfig, loadRulesConfig } from './rules-config';
+import { RulesConfig, loadRulesConfig, DEFAULT_RULES } from './rules-config';
 
 /**
  * Main entry point for the GitHub Action
@@ -37,14 +37,7 @@ async function run(): Promise<void> {
       core.info(`Loaded rules configuration from: ${rulesConfigPath}`);
     } catch (error) {
       core.warning(`Could not load rules config from ${rulesConfigPath}, using defaults`);
-      rulesConfig = {
-        rules: {
-          minTlsVersion: '1.2',
-          allowedCiphers: [],
-          blockedCiphers: [],
-          requireForwardSecrecy: true
-        }
-      };
+      rulesConfig = DEFAULT_RULES;
     }
 
     // Process each file

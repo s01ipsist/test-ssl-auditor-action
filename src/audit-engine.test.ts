@@ -1,5 +1,5 @@
-import { AuditEngine } from '../src/audit-engine';
-import { RulesConfig } from '../src/rules-config';
+import { AuditEngine } from './audit-engine';
+import { RulesConfig } from './rules-config';
 
 describe('AuditEngine', () => {
   let engine: AuditEngine;
