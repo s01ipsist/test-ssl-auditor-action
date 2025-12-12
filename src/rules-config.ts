@@ -11,6 +11,7 @@ export interface RulesConfig {
     blockedCiphers?: string[];
     requireForwardSecrecy?: boolean;
     maxCertificateExpiry?: number; // days
+    minGrade?: string; // Minimum overall grade (A+, A, A-, B, C, D, E, F, T)
   };
 }
 
@@ -23,7 +24,8 @@ export const DEFAULT_RULES: RulesConfig = {
     allowedCiphers: [],
     blockedCiphers: ['RC4', 'DES', '3DES', 'NULL', 'EXPORT', 'anon'],
     requireForwardSecrecy: true,
-    maxCertificateExpiry: 90
+    maxCertificateExpiry: 90,
+    minGrade: undefined // No grade requirement by default
   }
 };
 

@@ -112,18 +112,20 @@ Create a `.testssl-rules.json` file in your repository to configure audit rules:
       "MD5"
     ],
     "requireForwardSecrecy": true,
-    "maxCertificateExpiry": 90
+    "maxCertificateExpiry": 90,
+    "minGrade": "B"
   }
 }
 ```
 
 ### Available Rules
 
-- **minTlsVersion**: Minimum TLS version required (e.g., "1.2", "1.3")
+- **minTlsVersion**: Minimum TLS version required (e.g., "1.2", "1.3"). The action checks if any insecure TLS versions are offered, including handling findings like "offered", "offered (deprecated)", "not offered", and "not offered + downgraded to weaker protocol".
 - **allowedCiphers**: List of explicitly allowed cipher patterns (empty = all allowed)
-- **blockedCiphers**: List of blocked cipher patterns (e.g., "RC4", "DES")
+- **blockedCiphers**: List of blocked cipher patterns that should not be offered (e.g., "RC4", "DES", "3DES")
 - **requireForwardSecrecy**: Require forward secrecy (PFS) support
 - **maxCertificateExpiry**: Maximum days until certificate expiry
+- **minGrade**: Minimum overall grade required from testssl.sh (e.g., "A+", "A", "A-", "B", "C", "D", "E", "F", "T"). Grades are compared hierarchically where A+ is the best and T (trust issues, e.g., expired certificate) is the worst. If the actual grade is below the minimum, a violation is reported.
 
 ## Examples
 

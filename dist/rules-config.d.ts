@@ -8,6 +8,7 @@ export interface RulesConfig {
         blockedCiphers?: string[];
         requireForwardSecrecy?: boolean;
         maxCertificateExpiry?: number;
+        minGrade?: string;
     };
 }
 /**

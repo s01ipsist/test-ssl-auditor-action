@@ -12,14 +12,5 @@ export interface TestSSLScanItem {
   cwe?: string;
 }
 
-export interface TestSSLResult {
-  scanResult?: TestSSLScanItem[];
-  invocation?: string;
-  at?: string;
-  version?: string;
-  openssl?: string;
-  startTime?: string;
-  scanTime?: string;
-}
-
-export type TestSSLResults = TestSSLResult | TestSSLResult[];
+// testssl.sh output is actually an array of scan items
+export type TestSSLResults = TestSSLScanItem[];

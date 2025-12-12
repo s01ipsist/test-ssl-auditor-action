@@ -17,10 +17,14 @@ export declare class AuditEngine {
     constructor(config: RulesConfig);
     /**
      * Audit testssl.sh results against configured rules
-     * @param results The testssl.sh JSON results
+     * @param results The testssl.sh JSON results (array of scan items)
      * @returns Array of violations found
      */
     audit(results: TestSSLResults): Violation[];
+    /**
+     * Check overall grade compliance
+     */
+    private checkOverallGrade;
     /**
      * Check TLS version compliance
      */

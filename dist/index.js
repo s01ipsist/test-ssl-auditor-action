@@ -28095,6 +28095,20 @@ module.exports = {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.AuditEngine = void 0;
 /**
+ * Grade ranking for comparison (higher number = better grade)
+ */
+const GRADE_RANKING = {
+    'A+': 9,
+    A: 8,
+    'A-': 7,
+    B: 6,
+    C: 5,
+    D: 4,
+    E: 3,
+    F: 2,
+    T: 1 // Trust issues (e.g., expired certificate)
+};
+/**
  * Engine for auditing testssl.sh results against rules
  */
 class AuditEngine {
@@ -28103,36 +28117,91 @@ class AuditEngine {
     }
     /**
      * Audit testssl.sh results against configured rules
-     * @param results The testssl.sh JSON results
+     * @param results The testssl.sh JSON results (array of scan items)
      * @returns Array of violations found
      */
     audit(results) {
         const violations = [];
-        // Handle both single scan and array of scans
-        const scans = Array.isArray(results) ? results : [results];
-        for (const scan of scans) {
-            if (!scan || typeof scan !== 'object') {
-                continue;
-            }
-            // Check TLS version
-            if (this.config.rules.minTlsVersion) {
-                violations.push(...this.checkTlsVersion(scan));
-            }
-            // Check ciphers
-            if (this.config.rules.blockedCiphers && this.config.rules.blockedCiphers.length > 0) {
-                violations.push(...this.checkBlockedCiphers(scan));
-            }
-            // Check forward secrecy
-            if (this.config.rules.requireForwardSecrecy) {
-                violations.push(...this.checkForwardSecrecy(scan));
-            }
+        if (!Array.isArray(results)) {
+            return violations;
+        }
+        // Check overall grade
+        if (this.config.rules.minGrade) {
+            violations.push(...this.checkOverallGrade(results));
+        }
+        // Check TLS version
+        if (this.config.rules.minTlsVersion) {
+            violations.push(...this.checkTlsVersion(results));
+        }
+        // Check ciphers
+        if (this.config.rules.blockedCiphers && this.config.rules.blockedCiphers.length > 0) {
+            violations.push(...this.checkBlockedCiphers(results));
+        }
+        // Check forward secrecy
+        if (this.config.rules.requireForwardSecrecy) {
+            violations.push(...this.checkForwardSecrecy(results));
+        }
+        return violations;
+    }
+    /**
+     * Check overall grade compliance
+     */
+    checkOverallGrade(results) {
+        const violations = [];
+        const minGrade = this.config.rules.minGrade;
+        if (!minGrade) {
+            return violations;
+        }
+        const gradeItem = results.find(item => item.id === 'overall_grade');
+        if (!gradeItem) {
+            return violations;
+        }
+        const actualGrade = gradeItem.finding;
+        if (!actualGrade) {
+            return violations;
+        }
+        const minRank = GRADE_RANKING[minGrade];
+        const actualRank = GRADE_RANKING[actualGrade];
+        if (minRank === undefined) {
+            violations.push({
+                rule: 'overall-grade',
+                severity: 'low',
+                message: `Invalid minimum grade specified: ${minGrade}`,
+                details: { minGrade, actualGrade }
+            });
+            return violations;
+        }
+        if (actualRank === undefined) {
+            violations.push({
+                rule: 'overall-grade',
+                severity: 'medium',
+                message: `Unknown grade received: ${actualGrade}`,
+                details: { minGrade, actualGrade }
+            });
+            return violations;
+        }
+        if (actualRank < minRank) {
+            const severityMap = {
+                T: 'critical',
+                F: 'critical',
+                E: 'high',
+                D: 'high',
+                C: 'medium',
+                B: 'medium'
+            };
+            violations.push({
+                rule: 'overall-grade',
+                severity: severityMap[actualGrade] || 'medium',
+                message: `Overall grade ${actualGrade} does not meet minimum requirement of ${minGrade}`,
+                details: { minGrade, actualGrade, minRank, actualRank }
+            });
         }
         return violations;
     }
     /**
      * Check TLS version compliance
      */
-    checkTlsVersion(scan) {
+    checkTlsVersion(results) {
         const violations = [];
         const minVersion = this.config.rules.minTlsVersion;
         if (!minVersion) {
@@ -28140,23 +28209,25 @@ class AuditEngine {
         }
         // Parse minimum version (e.g., "1.2" -> 1.2)
         const minVersionNum = parseFloat(minVersion);
-        // Check protocols in the scan results
-        if (scan.scanResult && Array.isArray(scan.scanResult)) {
-            const protocols = scan.scanResult.filter((item) => item.id && item.id.startsWith('TLS'));
-            for (const protocol of protocols) {
-                if (protocol.severity === 'OK' || protocol.finding === 'offered') {
-                    // Extract version from protocol (e.g., "TLS 1.0" -> 1.0)
-                    const match = protocol.id.match(/TLS1?[_.]?(\d+)/i);
-                    if (match) {
-                        const versionNum = parseFloat(`1.${match[1]}`);
-                        if (versionNum < minVersionNum) {
-                            violations.push({
-                                rule: 'min-tls-version',
-                                severity: 'high',
-                                message: `Insecure TLS version ${protocol.id} is enabled (minimum required: TLS ${minVersion})`,
-                                details: { protocol: protocol.id }
-                            });
-                        }
+        // Find all TLS protocol entries
+        const tlsProtocols = results.filter(item => item.id && /^TLS1(_\d+)?$/.test(item.id) && item.finding);
+        for (const protocol of tlsProtocols) {
+            const finding = protocol.finding || '';
+            // Check if the protocol is offered (including deprecated)
+            // Findings can be: "offered", "offered (deprecated)", "not offered", etc.
+            if (finding.includes('offered') && !finding.includes('not offered')) {
+                // Extract version number from protocol id (e.g., "TLS1" -> 1.0, "TLS1_2" -> 1.2)
+                const match = protocol.id.match(/^TLS1(?:_(\d+))?$/);
+                if (match) {
+                    // TLS1 = 1.0, TLS1_1 = 1.1, TLS1_2 = 1.2, TLS1_3 = 1.3
+                    const versionNum = match[1] ? parseFloat(`1.${match[1]}`) : 1.0;
+                    if (versionNum < minVersionNum) {
+                        violations.push({
+                            rule: 'min-tls-version',
+                            severity: 'high',
+                            message: `Insecure TLS version ${protocol.id.replace('_', '.')} is enabled (finding: "${finding}", minimum required: TLS ${minVersion})`,
+                            details: { protocol: protocol.id, finding: finding, version: versionNum }
+                        });
                     }
                 }
             }
@@ -28166,27 +28237,29 @@ class AuditEngine {
     /**
      * Check for blocked ciphers
      */
-    checkBlockedCiphers(scan) {
+    checkBlockedCiphers(results) {
         const violations = [];
         const blockedCiphers = this.config.rules.blockedCiphers || [];
         if (blockedCiphers.length === 0) {
             return violations;
         }
-        // Check for ciphers in scan results
-        if (scan.scanResult && Array.isArray(scan.scanResult)) {
-            const cipherItems = scan.scanResult.filter((item) => item.id && item.id.includes('cipher'));
-            for (const item of cipherItems) {
-                const cipherName = item.finding || item.id;
-                if (typeof cipherName === 'string') {
-                    for (const blocked of blockedCiphers) {
-                        if (cipherName.toLowerCase().includes(blocked.toLowerCase())) {
-                            violations.push({
-                                rule: 'blocked-cipher',
-                                severity: 'critical',
-                                message: `Blocked cipher detected: ${cipherName}`,
-                                details: { cipher: cipherName, blocked: blocked }
-                            });
-                        }
+        // Find cipher list entries (e.g., cipherlist_3DES_IDEA, cipherlist_NULL, etc.)
+        const cipherItems = results.filter(item => item.id && item.id.startsWith('cipherlist_') && item.finding);
+        for (const item of cipherItems) {
+            const finding = item.finding || '';
+            // Only flag if the cipher is offered (excluding "not offered")
+            if ((finding === 'offered' || finding.includes('offered')) &&
+                !finding.includes('not offered')) {
+                const cipherName = item.id.replace('cipherlist_', '');
+                for (const blocked of blockedCiphers) {
+                    if (cipherName.toUpperCase().includes(blocked.toUpperCase())) {
+                        violations.push({
+                            rule: 'blocked-cipher',
+                            severity: 'critical',
+                            message: `Blocked cipher suite detected: ${cipherName} (finding: "${finding}")`,
+                            details: { cipher: cipherName, blocked: blocked, id: item.id }
+                        });
+                        break; // Only report once per cipher
                     }
                 }
             }
@@ -28196,16 +28269,18 @@ class AuditEngine {
     /**
      * Check for forward secrecy support
      */
-    checkForwardSecrecy(scan) {
+    checkForwardSecrecy(results) {
         const violations = [];
-        if (scan.scanResult && Array.isArray(scan.scanResult)) {
-            const fsItem = scan.scanResult.find((item) => item.id && item.id.toLowerCase().includes('pfs'));
-            if (fsItem && fsItem.severity !== 'OK') {
+        // Look for PFS (Perfect Forward Secrecy) related items
+        const fsItem = results.find(item => item.id && item.id.toLowerCase().includes('pfs'));
+        if (fsItem) {
+            // Check if severity is not OK or finding indicates a problem
+            if (fsItem.severity && fsItem.severity !== 'OK' && fsItem.severity !== 'INFO') {
                 violations.push({
                     rule: 'forward-secrecy',
                     severity: 'medium',
                     message: 'Forward secrecy is not properly configured',
-                    details: { finding: fsItem.finding }
+                    details: { finding: fsItem.finding, severity: fsItem.severity }
                 });
             }
         }
@@ -28380,7 +28455,8 @@ exports.DEFAULT_RULES = {
         allowedCiphers: [],
         blockedCiphers: ['RC4', 'DES', '3DES', 'NULL', 'EXPORT', 'anon'],
         requireForwardSecrecy: true,
-        maxCertificateExpiry: 90
+        maxCertificateExpiry: 90,
+        minGrade: undefined // No grade requirement by default
     }
 };
 /**

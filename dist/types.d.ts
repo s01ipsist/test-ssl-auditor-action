@@ -10,13 +10,4 @@ export interface TestSSLScanItem {
     cve?: string;
     cwe?: string;
 }
-export interface TestSSLResult {
-    scanResult?: TestSSLScanItem[];
-    invocation?: string;
-    at?: string;
-    version?: string;
-    openssl?: string;
-    startTime?: string;
-    scanTime?: string;
-}
-export type TestSSLResults = TestSSLResult | TestSSLResult[];
+export type TestSSLResults = TestSSLScanItem[];

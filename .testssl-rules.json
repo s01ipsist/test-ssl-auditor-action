@@ -12,6 +12,7 @@
       "MD5"
     ],
     "requireForwardSecrecy": true,
-    "maxCertificateExpiry": 90
+    "maxCertificateExpiry": 90,
+    "minGrade": "B"
   }
 }
