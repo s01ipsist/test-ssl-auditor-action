@@ -1,4 +1,5 @@
 import { RulesConfig } from './rules-config';
+import { TestSSLResults } from './types';
 /**
  * Represents a rule violation
  */
@@ -19,7 +20,7 @@ export declare class AuditEngine {
      * @param results The testssl.sh JSON results
      * @returns Array of violations found
      */
-    audit(results: any): Violation[];
+    audit(results: TestSSLResults): Violation[];
     /**
      * Check TLS version compliance
      */

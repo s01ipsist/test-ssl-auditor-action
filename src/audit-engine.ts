@@ -1,4 +1,5 @@
 import { RulesConfig } from './rules-config';
+import { TestSSLResults, TestSSLResult, TestSSLScanItem } from './types';
 
 /**
  * Represents a rule violation
@@ -21,7 +22,7 @@ export class AuditEngine {
    * @param results The testssl.sh JSON results
    * @returns Array of violations found
    */
-  audit(results: any): Violation[] {
+  audit(results: TestSSLResults): Violation[] {
     const violations: Violation[] = [];
 
     // Handle both single scan and array of scans
@@ -54,7 +55,7 @@ export class AuditEngine {
   /**
    * Check TLS version compliance
    */
-  private checkTlsVersion(scan: any): Violation[] {
+  private checkTlsVersion(scan: TestSSLResult): Violation[] {
     const violations: Violation[] = [];
     const minVersion = this.config.rules.minTlsVersion;
 
@@ -67,7 +68,9 @@ export class AuditEngine {
 
     // Check protocols in the scan results
     if (scan.scanResult && Array.isArray(scan.scanResult)) {
-      const protocols = scan.scanResult.filter((item: any) => item.id && item.id.startsWith('TLS'));
+      const protocols = scan.scanResult.filter(
+        (item: TestSSLScanItem) => item.id && item.id.startsWith('TLS')
+      );
 
       for (const protocol of protocols) {
         if (protocol.severity === 'OK' || protocol.finding === 'offered') {
@@ -94,7 +97,7 @@ export class AuditEngine {
   /**
    * Check for blocked ciphers
    */
-  private checkBlockedCiphers(scan: any): Violation[] {
+  private checkBlockedCiphers(scan: TestSSLResult): Violation[] {
     const violations: Violation[] = [];
     const blockedCiphers = this.config.rules.blockedCiphers || [];
 
@@ -105,7 +108,7 @@ export class AuditEngine {
     // Check for ciphers in scan results
     if (scan.scanResult && Array.isArray(scan.scanResult)) {
       const cipherItems = scan.scanResult.filter(
-        (item: any) => item.id && item.id.includes('cipher')
+        (item: TestSSLScanItem) => item.id && item.id.includes('cipher')
       );
 
       for (const item of cipherItems) {
@@ -131,12 +134,12 @@ export class AuditEngine {
   /**
    * Check for forward secrecy support
    */
-  private checkForwardSecrecy(scan: any): Violation[] {
+  private checkForwardSecrecy(scan: TestSSLResult): Violation[] {
     const violations: Violation[] = [];
 
     if (scan.scanResult && Array.isArray(scan.scanResult)) {
       const fsItem = scan.scanResult.find(
-        (item: any) => item.id && item.id.toLowerCase().includes('pfs')
+        (item: TestSSLScanItem) => item.id && item.id.toLowerCase().includes('pfs')
       );
 
       if (fsItem && fsItem.severity !== 'OK') {
