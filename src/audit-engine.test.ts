@@ -186,6 +186,27 @@ describe('AuditEngine', () => {
       expect(violations).toEqual([]);
     });
 
+    it('should handle A- grade below A requirement', () => {
+      const configWithGrade: RulesConfig = {
+        rules: {
+          minGrade: 'A'
+        }
+      };
+      const engineWithGrade = new AuditEngine(configWithGrade);
+
+      const mockResults: TestSSLScanItem[] = [
+        {
+          id: 'overall_grade',
+          severity: 'OK',
+          finding: 'A-'
+        }
+      ];
+
+      const violations = engineWithGrade.audit(mockResults);
+      expect(violations.length).toBeGreaterThan(0);
+      expect(violations[0].severity).toBe('low');
+    });
+
     it('should not check grade when minGrade is not configured', () => {
       const mockResults: TestSSLScanItem[] = [
         {
@@ -199,6 +220,34 @@ describe('AuditEngine', () => {
       // Should not have grade violations since minGrade is not set
       const gradeViolations = violations.filter(v => v.rule === 'overall-grade');
       expect(gradeViolations).toEqual([]);
+    });
+  });
+
+  describe('edge cases', () => {
+    it('should not match "unoffered" as offered', () => {
+      const mockResults: TestSSLScanItem[] = [
+        {
+          id: 'TLS1',
+          severity: 'OK',
+          finding: 'unoffered'
+        }
+      ];
+
+      const violations = engine.audit(mockResults);
+      expect(violations).toEqual([]);
+    });
+
+    it('should handle "not offered + downgraded to weaker protocol"', () => {
+      const mockResults: TestSSLScanItem[] = [
+        {
+          id: 'TLS1_3',
+          severity: 'INFO',
+          finding: 'not offered + downgraded to weaker protocol'
+        }
+      ];
+
+      const violations = engine.audit(mockResults);
+      expect(violations).toEqual([]);
     });
   });
 });

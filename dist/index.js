@@ -28116,6 +28116,23 @@ class AuditEngine {
         this.config = config;
     }
     /**
+     * Helper function to check if a finding indicates the protocol/cipher is offered
+     * @param finding The finding string from testssl.sh
+     * @returns true if the protocol/cipher is offered, false otherwise
+     */
+    isOffered(finding) {
+        if (!finding)
+            return false;
+        // Normalize to lowercase for comparison
+        const normalized = finding.toLowerCase();
+        // Must NOT contain "not offered" (handle various cases)
+        if (normalized.includes('not offered'))
+            return false;
+        // Must contain "offered" as a word (not as part of another word like "unoffered")
+        // Use word boundary check
+        return /\boffered\b/.test(normalized);
+    }
+    /**
      * Audit testssl.sh results against configured rules
      * @param results The testssl.sh JSON results (array of scan items)
      * @returns Array of violations found
@@ -28187,7 +28204,10 @@ class AuditEngine {
                 E: 'high',
                 D: 'high',
                 C: 'medium',
-                B: 'medium'
+                B: 'medium',
+                'A-': 'low',
+                A: 'low',
+                'A+': 'low'
             };
             violations.push({
                 rule: 'overall-grade',
@@ -28210,12 +28230,12 @@ class AuditEngine {
         // Parse minimum version (e.g., "1.2" -> 1.2)
         const minVersionNum = parseFloat(minVersion);
         // Find all TLS protocol entries
+        // Pattern matches: TLS1, TLS1_1, TLS1_2, TLS1_3 (testssl.sh naming convention)
         const tlsProtocols = results.filter(item => item.id && /^TLS1(_\d+)?$/.test(item.id) && item.finding);
         for (const protocol of tlsProtocols) {
             const finding = protocol.finding || '';
-            // Check if the protocol is offered (including deprecated)
-            // Findings can be: "offered", "offered (deprecated)", "not offered", etc.
-            if (finding.includes('offered') && !finding.includes('not offered')) {
+            // Check if the protocol is offered using helper function
+            if (this.isOffered(finding)) {
                 // Extract version number from protocol id (e.g., "TLS1" -> 1.0, "TLS1_2" -> 1.2)
                 const match = protocol.id.match(/^TLS1(?:_(\d+))?$/);
                 if (match) {
@@ -28247,9 +28267,8 @@ class AuditEngine {
         const cipherItems = results.filter(item => item.id && item.id.startsWith('cipherlist_') && item.finding);
         for (const item of cipherItems) {
             const finding = item.finding || '';
-            // Only flag if the cipher is offered (excluding "not offered")
-            if ((finding === 'offered' || finding.includes('offered')) &&
-                !finding.includes('not offered')) {
+            // Only flag if the cipher is offered using helper function
+            if (this.isOffered(finding)) {
                 const cipherName = item.id.replace('cipherlist_', '');
                 for (const blocked of blockedCiphers) {
                     if (cipherName.toUpperCase().includes(blocked.toUpperCase())) {
