@@ -349,4 +349,224 @@ describe('AuditEngine', () => {
       // Should NOT flag grade F or TLS1 as those rules are not configured
     });
   });
+
+  describe('certificate expiry', () => {
+    it('should detect expired certificates', () => {
+      const configWithExpiry: RulesConfig = {
+        rules: {
+          maxCertificateExpiry: 30
+        }
+      };
+      const engineWithExpiry = new AuditEngine(configWithExpiry);
+
+      const mockResults: TestSSLScanItem[] = [
+        {
+          id: 'cert_notBefore',
+          ip: 'expired.badssl.com/104.154.89.105',
+          port: '443',
+          severity: 'INFO',
+          finding: '2015-04-09 00:00'
+        },
+        {
+          id: 'cert_notAfter',
+          ip: 'expired.badssl.com/104.154.89.105',
+          port: '443',
+          severity: 'CRITICAL',
+          finding: '2015-04-12 23:59'
+        }
+      ];
+
+      const violations = engineWithExpiry.audit(mockResults);
+      expect(violations.length).toBeGreaterThan(0);
+      expect(violations[0].rule).toBe('certificate-expiry');
+      expect(violations[0].message).toContain('expired');
+    });
+
+    it('should detect certificates expiring within threshold', () => {
+      const configWithExpiry: RulesConfig = {
+        rules: {
+          maxCertificateExpiry: 30
+        }
+      };
+      const engineWithExpiry = new AuditEngine(configWithExpiry);
+
+      // Create a certificate that expires in 15 days
+      const now = new Date();
+      const notBefore = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000); // 1 year ago
+      const notAfter = new Date(now.getTime() + 15 * 24 * 60 * 60 * 1000); // 15 days from now
+
+      const formatDate = (date: Date) => {
+        const year = date.getUTCFullYear();
+        const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+        const day = String(date.getUTCDate()).padStart(2, '0');
+        const hours = String(date.getUTCHours()).padStart(2, '0');
+        const minutes = String(date.getUTCMinutes()).padStart(2, '0');
+        return `${year}-${month}-${day} ${hours}:${minutes}`;
+      };
+
+      const mockResults: TestSSLScanItem[] = [
+        {
+          id: 'cert_notBefore',
+          ip: 'example.com/1.2.3.4',
+          port: '443',
+          severity: 'INFO',
+          finding: formatDate(notBefore)
+        },
+        {
+          id: 'cert_notAfter',
+          ip: 'example.com/1.2.3.4',
+          port: '443',
+          severity: 'WARN',
+          finding: formatDate(notAfter)
+        }
+      ];
+
+      const violations = engineWithExpiry.audit(mockResults);
+      expect(violations.length).toBeGreaterThan(0);
+      expect(violations[0].rule).toBe('certificate-expiry');
+      expect(violations[0].message).toContain('expires in');
+      expect(violations[0].message).toContain('15 days');
+    });
+
+    it('should pass for valid certificates not expiring soon', () => {
+      const configWithExpiry: RulesConfig = {
+        rules: {
+          maxCertificateExpiry: 30
+        }
+      };
+      const engineWithExpiry = new AuditEngine(configWithExpiry);
+
+      // Create a certificate that expires in 90 days
+      const now = new Date();
+      const notBefore = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000); // 1 year ago
+      const notAfter = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000); // 90 days from now
+
+      const formatDate = (date: Date) => {
+        const year = date.getUTCFullYear();
+        const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+        const day = String(date.getUTCDate()).padStart(2, '0');
+        const hours = String(date.getUTCHours()).padStart(2, '0');
+        const minutes = String(date.getUTCMinutes()).padStart(2, '0');
+        return `${year}-${month}-${day} ${hours}:${minutes}`;
+      };
+
+      const mockResults: TestSSLScanItem[] = [
+        {
+          id: 'cert_notBefore',
+          ip: 'example.com/1.2.3.4',
+          port: '443',
+          severity: 'INFO',
+          finding: formatDate(notBefore)
+        },
+        {
+          id: 'cert_notAfter',
+          ip: 'example.com/1.2.3.4',
+          port: '443',
+          severity: 'OK',
+          finding: formatDate(notAfter)
+        }
+      ];
+
+      const violations = engineWithExpiry.audit(mockResults);
+      expect(violations).toEqual([]);
+    });
+
+    it('should detect certificates not yet valid', () => {
+      const configWithExpiry: RulesConfig = {
+        rules: {
+          maxCertificateExpiry: 30
+        }
+      };
+      const engineWithExpiry = new AuditEngine(configWithExpiry);
+
+      // Create a certificate that is not yet valid (notBefore in the future)
+      const now = new Date();
+      const notBefore = new Date(now.getTime() + 10 * 24 * 60 * 60 * 1000); // 10 days from now
+      const notAfter = new Date(now.getTime() + 100 * 24 * 60 * 60 * 1000); // 100 days from now
+
+      const formatDate = (date: Date) => {
+        const year = date.getUTCFullYear();
+        const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+        const day = String(date.getUTCDate()).padStart(2, '0');
+        const hours = String(date.getUTCHours()).padStart(2, '0');
+        const minutes = String(date.getUTCMinutes()).padStart(2, '0');
+        return `${year}-${month}-${day} ${hours}:${minutes}`;
+      };
+
+      const mockResults: TestSSLScanItem[] = [
+        {
+          id: 'cert_notBefore',
+          ip: 'example.com/1.2.3.4',
+          port: '443',
+          severity: 'CRITICAL',
+          finding: formatDate(notBefore)
+        },
+        {
+          id: 'cert_notAfter',
+          ip: 'example.com/1.2.3.4',
+          port: '443',
+          severity: 'OK',
+          finding: formatDate(notAfter)
+        }
+      ];
+
+      const violations = engineWithExpiry.audit(mockResults);
+      expect(violations.length).toBeGreaterThan(0);
+      expect(violations[0].rule).toBe('certificate-expiry');
+      expect(violations[0].message).toContain('not yet valid');
+    });
+
+    it('should handle missing certificate data gracefully', () => {
+      const configWithExpiry: RulesConfig = {
+        rules: {
+          maxCertificateExpiry: 30
+        }
+      };
+      const engineWithExpiry = new AuditEngine(configWithExpiry);
+
+      const mockResults: TestSSLScanItem[] = [
+        {
+          id: 'some_other_item',
+          severity: 'OK',
+          finding: 'test'
+        }
+      ];
+
+      const violations = engineWithExpiry.audit(mockResults);
+      // Should not have certificate violations when cert data is missing
+      const certViolations = violations.filter(v => v.rule === 'certificate-expiry');
+      expect(certViolations).toEqual([]);
+    });
+
+    it('should not check certificate expiry when maxCertificateExpiry is not configured', () => {
+      const configWithoutExpiry: RulesConfig = {
+        rules: {
+          minTlsVersion: '1.2'
+        }
+      };
+      const engineWithoutExpiry = new AuditEngine(configWithoutExpiry);
+
+      const mockResults: TestSSLScanItem[] = [
+        {
+          id: 'cert_notBefore',
+          ip: 'expired.badssl.com/104.154.89.105',
+          port: '443',
+          severity: 'INFO',
+          finding: '2015-04-09 00:00'
+        },
+        {
+          id: 'cert_notAfter',
+          ip: 'expired.badssl.com/104.154.89.105',
+          port: '443',
+          severity: 'CRITICAL',
+          finding: '2015-04-12 23:59'
+        }
+      ];
+
+      const violations = engineWithoutExpiry.audit(mockResults);
+      // Should not have certificate violations when rule is not configured
+      const certViolations = violations.filter(v => v.rule === 'certificate-expiry');
+      expect(certViolations).toEqual([]);
+    });
+  });
 });

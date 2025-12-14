@@ -77,4 +77,12 @@ export declare class AuditEngine {
    * Get forward secrecy audit results for annotations
    */
   private getForwardSecrecyResults;
+  /**
+   * Check certificate expiry compliance
+   */
+  private checkCertificateExpiry;
+  /**
+   * Get certificate expiry audit results for annotations
+   */
+  private getCertificateExpiryResults;
 }
