@@ -426,7 +426,8 @@ describe('AuditEngine', () => {
       expect(violations.length).toBeGreaterThan(0);
       expect(violations[0].rule).toBe('certificate-expiry');
       expect(violations[0].message).toContain('expires in');
-      expect(violations[0].message).toContain('15 days');
+      // Accept 14 or 15 days due to timing precision in Math.floor calculation
+      expect(violations[0].message).toMatch(/1[45] days/);
     });
 
     it('should pass for valid certificates not expiring soon', () => {
