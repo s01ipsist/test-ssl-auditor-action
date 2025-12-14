@@ -27,7 +27,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Test SSL/TLS
         uses: s01ipsist/test-ssl-action@main
@@ -58,7 +58,7 @@ jobs:
           - 'https://api.example.com/'
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Test SSL/TLS for ${{ matrix.uri }}
         uses: s01ipsist/test-ssl-action@main
@@ -72,7 +72,7 @@ jobs:
           fail-on-violation: 'true'
 
       - name: Upload results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: always()
         with:
           name: ssl-results-${{ strategy.job-index }}

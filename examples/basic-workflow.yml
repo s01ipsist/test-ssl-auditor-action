@@ -11,25 +11,25 @@ jobs:
   ssl-security-audit:
     name: SSL Security Audit
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
-      
+        uses: actions/checkout@v6
+
       - name: Test SSL/TLS
         uses: s01ipsist/test-ssl-action@main
         with:
           uri: 'https://badssl.com/'
-      
+
       - name: Audit SSL Results
         uses: s01ipsist/test-ssl-auditor-action@main
         with:
           results-path: 'testssl_results_*.json'
           rules-config: '.testssl-rules.json'
           fail-on-violation: 'true'
-      
+
       - name: Upload SSL test results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: always()
         with:
           name: ssl-test-results

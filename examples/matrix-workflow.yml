@@ -10,7 +10,7 @@ jobs:
   ssl-audit-matrix:
     name: SSL Audit - ${{ matrix.site.name }}
     runs-on: ubuntu-latest
-    
+
     strategy:
       fail-fast: false
       matrix:
@@ -21,25 +21,25 @@ jobs:
             uri: 'https://api.example.com/'
           - name: 'Admin'
             uri: 'https://admin.example.com/'
-    
+
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
-      
+        uses: actions/checkout@v6
+
       - name: Test SSL/TLS for ${{ matrix.site.name }}
         uses: s01ipsist/test-ssl-action@main
         with:
           uri: ${{ matrix.site.uri }}
-      
+
       - name: Audit SSL Results for ${{ matrix.site.name }}
         uses: s01ipsist/test-ssl-auditor-action@main
         with:
           results-path: 'testssl_results_*.json'
           rules-config: '.testssl-rules.json'
           fail-on-violation: 'true'
-      
+
       - name: Upload results for ${{ matrix.site.name }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: always()
         with:
           name: ssl-results-${{ matrix.site.name }}
