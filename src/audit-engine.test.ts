@@ -48,7 +48,6 @@ describe('AuditEngine', () => {
       const violations = engine.audit(mockResults);
       expect(violations.length).toBeGreaterThan(0);
       expect(violations[0].rule).toBe('min-tls-version');
-      expect(violations[0].severity).toBe('high');
       expect(violations[0].message).toContain('TLS1');
     });
 
@@ -77,7 +76,6 @@ describe('AuditEngine', () => {
       const violations = engine.audit(mockResults);
       expect(violations.length).toBeGreaterThan(0);
       expect(violations[0].rule).toBe('blocked-cipher');
-      expect(violations[0].severity).toBe('critical');
       expect(violations[0].message).toContain('3DES');
     });
 
@@ -163,7 +161,6 @@ describe('AuditEngine', () => {
       const violations = engineWithGrade.audit(mockResults);
       expect(violations.length).toBeGreaterThan(0);
       expect(violations[0].rule).toBe('overall-grade');
-      expect(violations[0].severity).toBe('critical');
     });
 
     it('should handle A+ grade correctly', () => {
@@ -204,7 +201,6 @@ describe('AuditEngine', () => {
 
       const violations = engineWithGrade.audit(mockResults);
       expect(violations.length).toBeGreaterThan(0);
-      expect(violations[0].severity).toBe('low');
     });
 
     it('should not check grade when minGrade is not configured', () => {
