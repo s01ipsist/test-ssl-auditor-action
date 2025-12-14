@@ -5,12 +5,6 @@ on:
   schedule:
     # Run the job once a week (e.g., every Sunday at 12:00 UTC)
     - cron: '12 0 * * SUN'
-  push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
 
 jobs:
   ssl:
