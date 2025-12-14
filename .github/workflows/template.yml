@@ -1,0 +1,45 @@
+name: Test Template
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Run the job once a week (e.g., every Sunday at 12:00 UTC)
+    - cron: '12 0 * * SUN'
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  ssl:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        uri:
+          - 'github.com'
+          - 'api.github.com'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Test SSL/TLS for ${{ matrix.uri }}
+        uses: s01ipsist/test-ssl-action@main
+        with:
+          uri: ${{ matrix.uri }}
+
+      - name: Audit SSL Results
+        uses: s01ipsist/test-ssl-auditor-action@main
+        with:
+          results-path: 'testssl_results_*.json'
+          rules-config: '.testssl-rules.strict.json'
+          fail-on-violation: 'true'
+
+      - name: Upload results
+        uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: ssl-results-${{ strategy.job-index }}
+          path: testssl_results_*.json
