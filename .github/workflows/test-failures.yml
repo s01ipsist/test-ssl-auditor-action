@@ -13,25 +13,25 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    
+
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-      
+
       - name: Test SSL/TLS for expired certificate endpoint
-        uses: s01ipsist/test-ssl-action@main
+        uses: s01ipsist/test-ssl-action@v1
         with:
           uri: 'expired.badssl.com'
         continue-on-error: true
-      
+
       - name: Audit SSL Results (should find violations but not fail)
         id: audit
-        uses: s01ipsist/test-ssl-auditor-action@main
+        uses: s01ipsist/test-ssl-auditor-action@v1
         with:
           results-path: 'testssl_results_*.json'
           rules-config: '.testssl-rules.json'
           fail-on-violation: 'false'
-      
+
       - name: Verify violations were detected
         run: |
           if [ "${{ steps.audit.outputs.violations-found }}" != "true" ]; then
@@ -44,7 +44,7 @@ jobs:
           fi
           echo "✅ PASS: Violations were correctly detected"
           echo "Found ${{ steps.audit.outputs.violation-count }} violation(s)"
-      
+
       - name: Upload results
         uses: actions/upload-artifact@v6
         if: always()
@@ -58,24 +58,24 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    
+
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-      
+
       - name: Test SSL/TLS for endpoint with lower grade
-        uses: s01ipsist/test-ssl-action@main
+        uses: s01ipsist/test-ssl-action@v1
         with:
           uri: 'mozilla-old.badssl.com'
-      
+
       - name: Audit SSL Results with strict grade requirement (should find violations but not fail)
         id: audit
-        uses: s01ipsist/test-ssl-auditor-action@main
+        uses: s01ipsist/test-ssl-auditor-action@v1
         with:
           results-path: 'testssl_results_*.json'
           rules-config: '.testssl-rules.strict.json'
           fail-on-violation: 'false'
-      
+
       - name: Verify violations were detected
         run: |
           if [ "${{ steps.audit.outputs.violations-found }}" != "true" ]; then
@@ -88,7 +88,7 @@ jobs:
           fi
           echo "✅ PASS: Violations were correctly detected"
           echo "Found ${{ steps.audit.outputs.violation-count }} violation(s)"
-      
+
       - name: Upload results
         uses: actions/upload-artifact@v6
         if: always()

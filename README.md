@@ -30,12 +30,12 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Test SSL/TLS
-        uses: s01ipsist/test-ssl-action@main
+        uses: s01ipsist/test-ssl-action@v1
         with:
           uri: 'https://example.com/'
 
       - name: Audit SSL Results
-        uses: s01ipsist/test-ssl-auditor-action@main
+        uses: s01ipsist/test-ssl-auditor-action@v1
         with:
           results-path: 'testssl_results_*.json'
           rules-config: '.testssl-rules.json'
@@ -61,12 +61,12 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Test SSL/TLS for ${{ matrix.uri }}
-        uses: s01ipsist/test-ssl-action@main
+        uses: s01ipsist/test-ssl-action@v1
         with:
           uri: ${{ matrix.uri }}
 
       - name: Audit SSL Results
-        uses: s01ipsist/test-ssl-auditor-action@main
+        uses: s01ipsist/test-ssl-auditor-action@v1
         with:
           results-path: 'testssl_results_*.json'
           fail-on-violation: 'true'
@@ -160,7 +160,7 @@ For organizations getting started with compliance, use the basic rule configurat
 
 ```yaml
 - name: Audit SSL for Compliance
-  uses: s01ipsist/test-ssl-auditor-action@main
+  uses: s01ipsist/test-ssl-auditor-action@v1
   with:
     results-path: 'testssl_results_*.json'
     rules-config: '.testssl-rules.basic.json' # Minimum grade B

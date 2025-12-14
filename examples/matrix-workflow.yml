@@ -27,12 +27,12 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Test SSL/TLS for ${{ matrix.site.name }}
-        uses: s01ipsist/test-ssl-action@main
+        uses: s01ipsist/test-ssl-action@v1
         with:
           uri: ${{ matrix.site.uri }}
 
       - name: Audit SSL Results for ${{ matrix.site.name }}
-        uses: s01ipsist/test-ssl-auditor-action@main
+        uses: s01ipsist/test-ssl-auditor-action@v1
         with:
           results-path: 'testssl_results_*.json'
           rules-config: '.testssl-rules.json'
