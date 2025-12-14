@@ -351,6 +351,16 @@ describe('AuditEngine', () => {
   });
 
   describe('certificate expiry', () => {
+    // Helper function to format dates in testssl.sh format
+    const formatDate = (date: Date): string => {
+      const year = date.getUTCFullYear();
+      const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+      const day = String(date.getUTCDate()).padStart(2, '0');
+      const hours = String(date.getUTCHours()).padStart(2, '0');
+      const minutes = String(date.getUTCMinutes()).padStart(2, '0');
+      return `${year}-${month}-${day} ${hours}:${minutes}`;
+    };
+
     it('should detect expired certificates', () => {
       const configWithExpiry: RulesConfig = {
         rules: {
@@ -395,15 +405,6 @@ describe('AuditEngine', () => {
       const notBefore = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000); // 1 year ago
       const notAfter = new Date(now.getTime() + 15 * 24 * 60 * 60 * 1000); // 15 days from now
 
-      const formatDate = (date: Date) => {
-        const year = date.getUTCFullYear();
-        const month = String(date.getUTCMonth() + 1).padStart(2, '0');
-        const day = String(date.getUTCDate()).padStart(2, '0');
-        const hours = String(date.getUTCHours()).padStart(2, '0');
-        const minutes = String(date.getUTCMinutes()).padStart(2, '0');
-        return `${year}-${month}-${day} ${hours}:${minutes}`;
-      };
-
       const mockResults: TestSSLScanItem[] = [
         {
           id: 'cert_notBefore',
@@ -441,15 +442,6 @@ describe('AuditEngine', () => {
       const notBefore = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000); // 1 year ago
       const notAfter = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000); // 90 days from now
 
-      const formatDate = (date: Date) => {
-        const year = date.getUTCFullYear();
-        const month = String(date.getUTCMonth() + 1).padStart(2, '0');
-        const day = String(date.getUTCDate()).padStart(2, '0');
-        const hours = String(date.getUTCHours()).padStart(2, '0');
-        const minutes = String(date.getUTCMinutes()).padStart(2, '0');
-        return `${year}-${month}-${day} ${hours}:${minutes}`;
-      };
-
       const mockResults: TestSSLScanItem[] = [
         {
           id: 'cert_notBefore',
@@ -483,15 +475,6 @@ describe('AuditEngine', () => {
       const now = new Date();
       const notBefore = new Date(now.getTime() + 10 * 24 * 60 * 60 * 1000); // 10 days from now
       const notAfter = new Date(now.getTime() + 100 * 24 * 60 * 60 * 1000); // 100 days from now
-
-      const formatDate = (date: Date) => {
-        const year = date.getUTCFullYear();
-        const month = String(date.getUTCMonth() + 1).padStart(2, '0');
-        const day = String(date.getUTCDate()).padStart(2, '0');
-        const hours = String(date.getUTCHours()).padStart(2, '0');
-        const minutes = String(date.getUTCMinutes()).padStart(2, '0');
-        return `${year}-${month}-${day} ${hours}:${minutes}`;
-      };
 
       const mockResults: TestSSLScanItem[] = [
         {
