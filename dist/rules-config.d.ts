@@ -2,14 +2,14 @@
  * Configuration for audit rules
  */
 export interface RulesConfig {
-    rules: {
-        minTlsVersion?: string;
-        allowedCiphers?: string[];
-        blockedCiphers?: string[];
-        requireForwardSecrecy?: boolean;
-        maxCertificateExpiry?: number;
-        minGrade?: string;
-    };
+  rules: {
+    minTlsVersion?: string;
+    allowedCiphers?: string[];
+    blockedCiphers?: string[];
+    requireForwardSecrecy?: boolean;
+    maxCertificateExpiry?: number;
+    minGrade?: string;
+  };
 }
 /**
  * Default rules configuration
