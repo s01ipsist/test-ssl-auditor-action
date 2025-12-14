@@ -246,4 +246,107 @@ describe('AuditEngine', () => {
       expect(violations).toEqual([]);
     });
   });
+
+  describe('selective rule testing', () => {
+    it('should only test minGrade when only minGrade is configured', () => {
+      // Config with only minGrade set (issue example)
+      const configWithOnlyGrade: RulesConfig = {
+        rules: {
+          minGrade: 'B'
+        }
+      };
+      const engineWithOnlyGrade = new AuditEngine(configWithOnlyGrade);
+
+      const mockResults: TestSSLScanItem[] = [
+        {
+          id: 'overall_grade',
+          severity: 'OK',
+          finding: 'A'
+        },
+        {
+          id: 'TLS1',
+          severity: 'LOW',
+          finding: 'offered (deprecated)'
+        },
+        {
+          id: 'cipherlist_RC4',
+          severity: 'HIGH',
+          finding: 'offered'
+        }
+      ];
+
+      const violations = engineWithOnlyGrade.audit(mockResults);
+
+      // Should not have any violations because:
+      // - Grade A meets minimum of B (passes)
+      // - TLS1 should not be checked (minTlsVersion not configured)
+      // - RC4 cipher should not be checked (blockedCiphers not configured)
+      expect(violations).toEqual([]);
+    });
+
+    it('should test all configured rules when multiple rules are set', () => {
+      const configWithMultiple: RulesConfig = {
+        rules: {
+          minGrade: 'A',
+          minTlsVersion: '1.2'
+        }
+      };
+      const engineWithMultiple = new AuditEngine(configWithMultiple);
+
+      const mockResults: TestSSLScanItem[] = [
+        {
+          id: 'overall_grade',
+          severity: 'MEDIUM',
+          finding: 'B'
+        },
+        {
+          id: 'TLS1',
+          severity: 'LOW',
+          finding: 'offered (deprecated)'
+        }
+      ];
+
+      const violations = engineWithMultiple.audit(mockResults);
+
+      // Should have violations for both rules
+      expect(violations.length).toBe(2);
+      expect(violations.some(v => v.rule === 'overall-grade')).toBe(true);
+      expect(violations.some(v => v.rule === 'min-tls-version')).toBe(true);
+    });
+
+    it('should not test unconfigured rules even with potential violations', () => {
+      // Only configure blockedCiphers
+      const configWithOnlyCiphers: RulesConfig = {
+        rules: {
+          blockedCiphers: ['RC4']
+        }
+      };
+      const engineWithOnlyCiphers = new AuditEngine(configWithOnlyCiphers);
+
+      const mockResults: TestSSLScanItem[] = [
+        {
+          id: 'overall_grade',
+          severity: 'CRITICAL',
+          finding: 'F'
+        },
+        {
+          id: 'TLS1',
+          severity: 'LOW',
+          finding: 'offered (deprecated)'
+        },
+        {
+          id: 'cipherlist_RC4',
+          severity: 'HIGH',
+          finding: 'offered'
+        }
+      ];
+
+      const violations = engineWithOnlyCiphers.audit(mockResults);
+
+      // Should only have violation for RC4 cipher
+      expect(violations.length).toBe(1);
+      expect(violations[0].rule).toBe('blocked-cipher');
+      // Should NOT flag grade F or TLS1 as those rules are not configured
+    });
+  });
 });

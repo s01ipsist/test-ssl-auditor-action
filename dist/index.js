@@ -28671,7 +28671,7 @@ exports.loadRulesConfig = loadRulesConfig;
 const promises_1 = __nccwpck_require__(1943);
 const fs_1 = __nccwpck_require__(9896);
 /**
- * Default rules configuration
+ * Default rules configuration - used only when no config file is provided
  */
 exports.DEFAULT_RULES = {
     rules: {
@@ -28694,13 +28694,9 @@ async function loadRulesConfig(configPath) {
     }
     const content = await (0, promises_1.readFile)(configPath, 'utf-8');
     const config = JSON.parse(content);
-    // Merge with defaults
-    return {
-        rules: {
-            ...exports.DEFAULT_RULES.rules,
-            ...config.rules
-        }
-    };
+    // Return the loaded config without merging with defaults
+    // If a config is provided, only the rules specified in it should be tested
+    return config;
 }
 
 

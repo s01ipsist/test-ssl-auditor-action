@@ -16,7 +16,7 @@ export interface RulesConfig {
 }
 
 /**
- * Default rules configuration
+ * Default rules configuration - used only when no config file is provided
  */
 export const DEFAULT_RULES: RulesConfig = {
   rules: {
@@ -42,11 +42,7 @@ export async function loadRulesConfig(configPath: string): Promise<RulesConfig> 
   const content = await readFile(configPath, 'utf-8');
   const config = JSON.parse(content) as RulesConfig;
 
-  // Merge with defaults
-  return {
-    rules: {
-      ...DEFAULT_RULES.rules,
-      ...config.rules
-    }
-  };
+  // Return the loaded config without merging with defaults
+  // If a config is provided, only the rules specified in it should be tested
+  return config;
 }
