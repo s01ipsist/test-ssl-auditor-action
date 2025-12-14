@@ -28109,6 +28109,10 @@ const GRADE_RANKING = {
     T: 1 // Trust issues (e.g., expired certificate)
 };
 /**
+ * Milliseconds in one day (for date calculations)
+ */
+const MILLISECONDS_PER_DAY = 1000 * 60 * 60 * 24;
+/**
  * Engine for auditing testssl.sh results against rules
  */
 class AuditEngine {
@@ -28120,6 +28124,20 @@ class AuditEngine {
      */
     formatIpSuffix(ip) {
         return ip ? ` [${ip}]` : '';
+    }
+    /**
+     * Helper function to parse certificate date from testssl.sh format
+     * @param dateString Date string in format "YYYY-MM-DD HH:mm"
+     * @param isNotAfter Whether this is a notAfter date (adds :59 seconds instead of :00)
+     * @returns Parsed Date object or null if invalid
+     */
+    parseCertificateDate(dateString, isNotAfter = false) {
+        // Parse dates (format: "YYYY-MM-DD HH:mm")
+        // Add seconds for notBefore (:00) and notAfter (:59)
+        const seconds = isNotAfter ? ':59' : ':00';
+        const isoString = dateString.replace(' ', 'T') + seconds + 'Z';
+        const date = new Date(isoString);
+        return isNaN(date.getTime()) ? null : date;
     }
     /**
      * Helper function to check if a finding indicates the protocol/cipher is offered
@@ -28556,11 +28574,11 @@ class AuditEngine {
         }
         const ipSuffix = this.formatIpSuffix(notAfterItem.ip);
         const now = new Date();
-        // Parse dates (format: "YYYY-MM-DD HH:mm")
-        const notBeforeDate = new Date(notBefore.replace(' ', 'T') + ':00Z');
-        const notAfterDate = new Date(notAfter.replace(' ', 'T') + ':59Z');
+        // Parse dates using helper method
+        const notBeforeDate = this.parseCertificateDate(notBefore, false);
+        const notAfterDate = this.parseCertificateDate(notAfter, true);
         // Check if dates are valid
-        if (isNaN(notBeforeDate.getTime()) || isNaN(notAfterDate.getTime())) {
+        if (!notBeforeDate || !notAfterDate) {
             violations.push({
                 rule: 'certificate-expiry',
                 message: `Invalid certificate date format${ipSuffix}`,
@@ -28585,7 +28603,7 @@ class AuditEngine {
             });
         }
         // Check if certificate is expiring within the threshold
-        const daysUntilExpiry = (notAfterDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
+        const daysUntilExpiry = (notAfterDate.getTime() - now.getTime()) / MILLISECONDS_PER_DAY;
         if (daysUntilExpiry > 0 && daysUntilExpiry <= maxDays) {
             violations.push({
                 rule: 'certificate-expiry',
@@ -28623,11 +28641,11 @@ class AuditEngine {
         }
         const ipSuffix = this.formatIpSuffix(notAfterItem.ip);
         const now = new Date();
-        // Parse dates (format: "YYYY-MM-DD HH:mm")
-        const notBeforeDate = new Date(notBefore.replace(' ', 'T') + ':00Z');
-        const notAfterDate = new Date(notAfter.replace(' ', 'T') + ':59Z');
+        // Parse dates using helper method
+        const notBeforeDate = this.parseCertificateDate(notBefore, false);
+        const notAfterDate = this.parseCertificateDate(notAfter, true);
         // Check if dates are valid
-        if (isNaN(notBeforeDate.getTime()) || isNaN(notAfterDate.getTime())) {
+        if (!notBeforeDate || !notAfterDate) {
             auditResults.push({
                 rule: 'certificate-expiry',
                 passed: false,
@@ -28657,7 +28675,7 @@ class AuditEngine {
             return auditResults;
         }
         // Check if certificate is expiring within the threshold
-        const daysUntilExpiry = (notAfterDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
+        const daysUntilExpiry = (notAfterDate.getTime() - now.getTime()) / MILLISECONDS_PER_DAY;
         if (daysUntilExpiry > 0 && daysUntilExpiry <= maxDays) {
             auditResults.push({
                 rule: 'certificate-expiry',

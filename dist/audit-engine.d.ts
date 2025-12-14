@@ -28,6 +28,13 @@ export declare class AuditEngine {
    */
   private formatIpSuffix;
   /**
+   * Helper function to parse certificate date from testssl.sh format
+   * @param dateString Date string in format "YYYY-MM-DD HH:mm"
+   * @param isNotAfter Whether this is a notAfter date (adds :59 seconds instead of :00)
+   * @returns Parsed Date object or null if invalid
+   */
+  private parseCertificateDate;
+  /**
    * Helper function to check if a finding indicates the protocol/cipher is offered
    * @param finding The finding string from testssl.sh
    * @returns true if the protocol/cipher is offered, false otherwise
