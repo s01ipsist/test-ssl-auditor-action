@@ -24,6 +24,10 @@ export declare class AuditEngine {
     private config;
     constructor(config: RulesConfig);
     /**
+     * Helper function to format IP address suffix for messages
+     */
+    private formatIpSuffix;
+    /**
      * Helper function to check if a finding indicates the protocol/cipher is offered
      * @param finding The finding string from testssl.sh
      * @returns true if the protocol/cipher is offered, false otherwise

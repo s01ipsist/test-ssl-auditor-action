@@ -28116,6 +28116,12 @@ class AuditEngine {
         this.config = config;
     }
     /**
+     * Helper function to format IP address suffix for messages
+     */
+    formatIpSuffix(ip) {
+        return ip ? ` [${ip}]` : '';
+    }
+    /**
      * Helper function to check if a finding indicates the protocol/cipher is offered
      * @param finding The finding string from testssl.sh
      * @returns true if the protocol/cipher is offered, false otherwise
@@ -28258,7 +28264,7 @@ class AuditEngine {
                     if (versionNum < minVersionNum) {
                         violations.push({
                             rule: 'min-tls-version',
-                            message: `Insecure TLS version ${protocol.id.replace('_', '.')} is enabled (finding: "${finding}", minimum required: TLS ${minVersion})${protocol.ip ? ` [${protocol.ip}]` : ''}`,
+                            message: `Insecure TLS version ${protocol.id.replace('_', '.')} is enabled (finding: "${finding}", minimum required: TLS ${minVersion})${this.formatIpSuffix(protocol.ip)}`,
                             details: {
                                 protocol: protocol.id,
                                 finding: finding,
@@ -28292,7 +28298,7 @@ class AuditEngine {
                     if (cipherName.toUpperCase().includes(blocked.toUpperCase())) {
                         violations.push({
                             rule: 'blocked-cipher',
-                            message: `Blocked cipher suite detected: ${cipherName} (finding: "${finding}")${item.ip ? ` [${item.ip}]` : ''}`,
+                            message: `Blocked cipher suite detected: ${cipherName} (finding: "${finding}")${this.formatIpSuffix(item.ip)}`,
                             details: { cipher: cipherName, blocked: blocked, id: item.id, ip: item.ip }
                         });
                         break; // Only report once per cipher
@@ -28314,7 +28320,7 @@ class AuditEngine {
             if (fsItem.severity && fsItem.severity !== 'OK' && fsItem.severity !== 'INFO') {
                 violations.push({
                     rule: 'forward-secrecy',
-                    message: `Forward secrecy is not properly configured${fsItem.ip ? ` [${fsItem.ip}]` : ''}`,
+                    message: `Forward secrecy is not properly configured${this.formatIpSuffix(fsItem.ip)}`,
                     details: { finding: fsItem.finding, severity: fsItem.severity, ip: fsItem.ip }
                 });
             }
@@ -28395,7 +28401,7 @@ class AuditEngine {
             if (!match)
                 continue;
             const versionNum = match[1] ? parseFloat(`1.${match[1]}`) : 1.0;
-            const ipSuffix = protocol.ip ? ` [${protocol.ip}]` : '';
+            const ipSuffix = this.formatIpSuffix(protocol.ip);
             // Check if the protocol is offered
             if (this.isOffered(finding)) {
                 if (versionNum < minVersionNum) {
@@ -28458,7 +28464,7 @@ class AuditEngine {
         for (const item of cipherItems) {
             const finding = item.finding || '';
             const cipherName = item.id.replace('cipherlist_', '');
-            const ipSuffix = item.ip ? ` [${item.ip}]` : '';
+            const ipSuffix = this.formatIpSuffix(item.ip);
             // Check if this is a blocked cipher
             let isBlocked = false;
             let blockedPattern = '';
@@ -28499,7 +28505,7 @@ class AuditEngine {
         // Look for PFS (Perfect Forward Secrecy) related items
         const fsItem = results.find(item => item.id && item.id.toLowerCase().includes('pfs'));
         if (fsItem) {
-            const ipSuffix = fsItem.ip ? ` [${fsItem.ip}]` : '';
+            const ipSuffix = this.formatIpSuffix(fsItem.ip);
             // Check if severity is not OK or finding indicates a problem
             if (fsItem.severity && fsItem.severity !== 'OK' && fsItem.severity !== 'INFO') {
                 auditResults.push({
@@ -28634,10 +28640,10 @@ async function run() {
         core.setOutput('summary', violationsFound ? `Found ${totalViolations} violations` : 'All checks passed');
         // Fail if requested and violations found
         if (failOnViolation && violationsFound) {
-            core.setFailed(`Found ${totalViolations} rule violation(s). Review the annotations for details.`);
+            core.setFailed(`Found ${totalViolations} violations. Review the annotations for details.`);
         }
         else if (violationsFound) {
-            core.warning(`Found ${totalViolations} rule violation(s) but not failing (fail-on-violation is false)`);
+            core.warning(`Found ${totalViolations} violations but not failing (fail-on-violation is false)`);
         }
         else {
             core.info('✅ All audits passed!');

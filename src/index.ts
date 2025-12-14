@@ -79,12 +79,10 @@ async function run(): Promise<void> {
 
     // Fail if requested and violations found
     if (failOnViolation && violationsFound) {
-      core.setFailed(
-        `Found ${totalViolations} rule violation(s). Review the annotations for details.`
-      );
+      core.setFailed(`Found ${totalViolations} violations. Review the annotations for details.`);
     } else if (violationsFound) {
       core.warning(
-        `Found ${totalViolations} rule violation(s) but not failing (fail-on-violation is false)`
+        `Found ${totalViolations} violations but not failing (fail-on-violation is false)`
       );
     } else {
       core.info('✅ All audits passed!');
