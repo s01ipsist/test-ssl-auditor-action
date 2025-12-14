@@ -28116,6 +28116,12 @@ class AuditEngine {
         this.config = config;
     }
     /**
+     * Helper function to format IP address suffix for messages
+     */
+    formatIpSuffix(ip) {
+        return ip ? ` [${ip}]` : '';
+    }
+    /**
      * Helper function to check if a finding indicates the protocol/cipher is offered
      * @param finding The finding string from testssl.sh
      * @returns true if the protocol/cipher is offered, false otherwise
@@ -28161,6 +28167,34 @@ class AuditEngine {
         return violations;
     }
     /**
+     * Get comprehensive audit results for annotations (both pass and fail)
+     * @param results The testssl.sh JSON results (array of scan items)
+     * @returns Array of audit results with pass/fail status
+     */
+    getAuditResults(results) {
+        const auditResults = [];
+        if (!Array.isArray(results)) {
+            return auditResults;
+        }
+        // Check overall grade
+        if (this.config.rules.minGrade) {
+            auditResults.push(...this.getOverallGradeResults(results));
+        }
+        // Check TLS version
+        if (this.config.rules.minTlsVersion) {
+            auditResults.push(...this.getTlsVersionResults(results));
+        }
+        // Check ciphers
+        if (this.config.rules.blockedCiphers && this.config.rules.blockedCiphers.length > 0) {
+            auditResults.push(...this.getBlockedCipherResults(results));
+        }
+        // Check forward secrecy
+        if (this.config.rules.requireForwardSecrecy) {
+            auditResults.push(...this.getForwardSecrecyResults(results));
+        }
+        return auditResults;
+    }
+    /**
      * Check overall grade compliance
      */
     checkOverallGrade(results) {
@@ -28182,7 +28216,6 @@ class AuditEngine {
         if (minRank === undefined) {
             violations.push({
                 rule: 'overall-grade',
-                severity: 'low',
                 message: `Invalid minimum grade specified: ${minGrade}`,
                 details: { minGrade, actualGrade }
             });
@@ -28191,27 +28224,14 @@ class AuditEngine {
         if (actualRank === undefined) {
             violations.push({
                 rule: 'overall-grade',
-                severity: 'medium',
                 message: `Unknown grade received: ${actualGrade}`,
                 details: { minGrade, actualGrade }
             });
             return violations;
         }
         if (actualRank < minRank) {
-            const severityMap = {
-                T: 'critical',
-                F: 'critical',
-                E: 'high',
-                D: 'high',
-                C: 'medium',
-                B: 'medium',
-                'A-': 'low',
-                A: 'low',
-                'A+': 'low'
-            };
             violations.push({
                 rule: 'overall-grade',
-                severity: severityMap[actualGrade] || 'medium',
                 message: `Overall grade ${actualGrade} does not meet minimum requirement of ${minGrade}`,
                 details: { minGrade, actualGrade, minRank, actualRank }
             });
@@ -28244,9 +28264,13 @@ class AuditEngine {
                     if (versionNum < minVersionNum) {
                         violations.push({
                             rule: 'min-tls-version',
-                            severity: 'high',
-                            message: `Insecure TLS version ${protocol.id.replace('_', '.')} is enabled (finding: "${finding}", minimum required: TLS ${minVersion})`,
-                            details: { protocol: protocol.id, finding: finding, version: versionNum }
+                            message: `Insecure TLS version ${protocol.id.replace('_', '.')} is enabled (finding: "${finding}", minimum required: TLS ${minVersion})${this.formatIpSuffix(protocol.ip)}`,
+                            details: {
+                                protocol: protocol.id,
+                                finding: finding,
+                                version: versionNum,
+                                ip: protocol.ip
+                            }
                         });
                     }
                 }
@@ -28274,9 +28298,8 @@ class AuditEngine {
                     if (cipherName.toUpperCase().includes(blocked.toUpperCase())) {
                         violations.push({
                             rule: 'blocked-cipher',
-                            severity: 'critical',
-                            message: `Blocked cipher suite detected: ${cipherName} (finding: "${finding}")`,
-                            details: { cipher: cipherName, blocked: blocked, id: item.id }
+                            message: `Blocked cipher suite detected: ${cipherName} (finding: "${finding}")${this.formatIpSuffix(item.ip)}`,
+                            details: { cipher: cipherName, blocked: blocked, id: item.id, ip: item.ip }
                         });
                         break; // Only report once per cipher
                     }
@@ -28297,13 +28320,211 @@ class AuditEngine {
             if (fsItem.severity && fsItem.severity !== 'OK' && fsItem.severity !== 'INFO') {
                 violations.push({
                     rule: 'forward-secrecy',
-                    severity: 'medium',
-                    message: 'Forward secrecy is not properly configured',
-                    details: { finding: fsItem.finding, severity: fsItem.severity }
+                    message: `Forward secrecy is not properly configured${this.formatIpSuffix(fsItem.ip)}`,
+                    details: { finding: fsItem.finding, severity: fsItem.severity, ip: fsItem.ip }
                 });
             }
         }
         return violations;
+    }
+    /**
+     * Get overall grade audit results for annotations
+     */
+    getOverallGradeResults(results) {
+        const auditResults = [];
+        const minGrade = this.config.rules.minGrade;
+        if (!minGrade) {
+            return auditResults;
+        }
+        const gradeItem = results.find(item => item.id === 'overall_grade');
+        if (!gradeItem) {
+            return auditResults;
+        }
+        const actualGrade = gradeItem.finding;
+        if (!actualGrade) {
+            return auditResults;
+        }
+        const minRank = GRADE_RANKING[minGrade];
+        const actualRank = GRADE_RANKING[actualGrade];
+        if (minRank === undefined) {
+            auditResults.push({
+                rule: 'overall-grade',
+                passed: false,
+                message: `Invalid minimum grade specified: ${minGrade}`,
+                details: { minGrade, actualGrade }
+            });
+            return auditResults;
+        }
+        if (actualRank === undefined) {
+            auditResults.push({
+                rule: 'overall-grade',
+                passed: false,
+                message: `Unknown grade received: ${actualGrade}`,
+                details: { minGrade, actualGrade }
+            });
+            return auditResults;
+        }
+        if (actualRank < minRank) {
+            auditResults.push({
+                rule: 'overall-grade',
+                passed: false,
+                message: `Overall grade ${actualGrade} does not meet minimum requirement of ${minGrade}`,
+                details: { minGrade, actualGrade, minRank, actualRank }
+            });
+        }
+        else {
+            auditResults.push({
+                rule: 'overall-grade',
+                passed: true,
+                message: `Grade ${actualGrade} meets the minimum requirement of ${minGrade}`,
+                details: { minGrade, actualGrade, minRank, actualRank }
+            });
+        }
+        return auditResults;
+    }
+    /**
+     * Get TLS version audit results for annotations
+     */
+    getTlsVersionResults(results) {
+        const auditResults = [];
+        const minVersion = this.config.rules.minTlsVersion;
+        if (!minVersion) {
+            return auditResults;
+        }
+        // Parse minimum version (e.g., "1.2" -> 1.2)
+        const minVersionNum = parseFloat(minVersion);
+        // Find all TLS protocol entries
+        const tlsProtocols = results.filter(item => item.id && /^TLS1(_\d+)?$/.test(item.id) && item.finding);
+        for (const protocol of tlsProtocols) {
+            const finding = protocol.finding || '';
+            const match = protocol.id.match(/^TLS1(?:_(\d+))?$/);
+            if (!match)
+                continue;
+            const versionNum = match[1] ? parseFloat(`1.${match[1]}`) : 1.0;
+            const ipSuffix = this.formatIpSuffix(protocol.ip);
+            // Check if the protocol is offered
+            if (this.isOffered(finding)) {
+                if (versionNum < minVersionNum) {
+                    auditResults.push({
+                        rule: 'min-tls-version',
+                        passed: false,
+                        message: `Insecure TLS version ${protocol.id.replace('_', '.')} is enabled (finding: "${finding}", minimum required: TLS ${minVersion})${ipSuffix}`,
+                        details: {
+                            protocol: protocol.id,
+                            finding: finding,
+                            version: versionNum,
+                            ip: protocol.ip
+                        }
+                    });
+                }
+                else {
+                    auditResults.push({
+                        rule: 'min-tls-version',
+                        passed: true,
+                        message: `TLS version ${protocol.id.replace('_', '.')} meets the minimum requirement of TLS ${minVersion}${ipSuffix}`,
+                        details: {
+                            protocol: protocol.id,
+                            finding: finding,
+                            version: versionNum,
+                            ip: protocol.ip
+                        }
+                    });
+                }
+            }
+            else {
+                // Not offered - this is good for versions below minimum
+                if (versionNum < minVersionNum) {
+                    auditResults.push({
+                        rule: 'min-tls-version',
+                        passed: true,
+                        message: `TLS version ${protocol.id.replace('_', '.')} is not offered (finding: "${finding}")${ipSuffix}`,
+                        details: {
+                            protocol: protocol.id,
+                            finding: finding,
+                            version: versionNum,
+                            ip: protocol.ip
+                        }
+                    });
+                }
+            }
+        }
+        return auditResults;
+    }
+    /**
+     * Get blocked cipher audit results for annotations
+     */
+    getBlockedCipherResults(results) {
+        const auditResults = [];
+        const blockedCiphers = this.config.rules.blockedCiphers || [];
+        if (blockedCiphers.length === 0) {
+            return auditResults;
+        }
+        // Find cipher list entries
+        const cipherItems = results.filter(item => item.id && item.id.startsWith('cipherlist_') && item.finding);
+        for (const item of cipherItems) {
+            const finding = item.finding || '';
+            const cipherName = item.id.replace('cipherlist_', '');
+            const ipSuffix = this.formatIpSuffix(item.ip);
+            // Check if this is a blocked cipher
+            let isBlocked = false;
+            let blockedPattern = '';
+            for (const blocked of blockedCiphers) {
+                if (cipherName.toUpperCase().includes(blocked.toUpperCase())) {
+                    isBlocked = true;
+                    blockedPattern = blocked;
+                    break;
+                }
+            }
+            if (isBlocked) {
+                // Only flag if the cipher is offered
+                if (this.isOffered(finding)) {
+                    auditResults.push({
+                        rule: 'blocked-cipher',
+                        passed: false,
+                        message: `Blocked cipher suite detected: ${cipherName} (finding: "${finding}")${ipSuffix}`,
+                        details: { cipher: cipherName, blocked: blockedPattern, id: item.id, ip: item.ip }
+                    });
+                }
+                else {
+                    auditResults.push({
+                        rule: 'blocked-cipher',
+                        passed: true,
+                        message: `Blocked cipher suite ${cipherName} is not offered (finding: "${finding}")${ipSuffix}`,
+                        details: { cipher: cipherName, blocked: blockedPattern, id: item.id, ip: item.ip }
+                    });
+                }
+            }
+        }
+        return auditResults;
+    }
+    /**
+     * Get forward secrecy audit results for annotations
+     */
+    getForwardSecrecyResults(results) {
+        const auditResults = [];
+        // Look for PFS (Perfect Forward Secrecy) related items
+        const fsItem = results.find(item => item.id && item.id.toLowerCase().includes('pfs'));
+        if (fsItem) {
+            const ipSuffix = this.formatIpSuffix(fsItem.ip);
+            // Check if severity is not OK or finding indicates a problem
+            if (fsItem.severity && fsItem.severity !== 'OK' && fsItem.severity !== 'INFO') {
+                auditResults.push({
+                    rule: 'forward-secrecy',
+                    passed: false,
+                    message: `Forward secrecy is not properly configured${ipSuffix}`,
+                    details: { finding: fsItem.finding, severity: fsItem.severity, ip: fsItem.ip }
+                });
+            }
+            else {
+                auditResults.push({
+                    rule: 'forward-secrecy',
+                    passed: true,
+                    message: `Forward secrecy is properly configured${ipSuffix}`,
+                    details: { finding: fsItem.finding, severity: fsItem.severity, ip: fsItem.ip }
+                });
+            }
+        }
+        return auditResults;
     }
 }
 exports.AuditEngine = AuditEngine;
@@ -28389,56 +28610,40 @@ async function run() {
         // Process each file
         const auditEngine = new audit_engine_1.AuditEngine(rulesConfig);
         let totalViolations = 0;
-        const summaryLines = [];
         for (const filePath of files) {
             core.info(`Processing: ${filePath}`);
             try {
                 const content = await (0, promises_1.readFile)(filePath, 'utf-8');
                 const results = JSON.parse(content);
-                const violations = auditEngine.audit(results);
-                if (violations.length > 0) {
-                    core.warning(`Found ${violations.length} violation(s) in ${filePath}`);
-                    violations.forEach(violation => {
-                        core.warning(`  - ${violation.message}`);
-                    });
-                    totalViolations += violations.length;
-                    summaryLines.push(`${filePath}: ${violations.length} violation(s)`);
-                }
-                else {
-                    core.info(`No violations found in ${filePath}`);
-                    summaryLines.push(`${filePath}: PASS`);
+                // Get audit results for annotations
+                const auditResults = auditEngine.getAuditResults(results);
+                // Create annotations for each result
+                for (const result of auditResults) {
+                    if (result.passed) {
+                        core.notice(result.message);
+                    }
+                    else {
+                        core.error(result.message);
+                        totalViolations++;
+                    }
                 }
             }
             catch (error) {
                 const errorMessage = error instanceof Error ? error.message : String(error);
                 core.error(`Failed to process ${filePath}: ${errorMessage}`);
-                summaryLines.push(`${filePath}: ERROR - ${errorMessage}`);
             }
         }
         // Set outputs
         const violationsFound = totalViolations > 0;
         core.setOutput('violations-found', violationsFound.toString());
         core.setOutput('violation-count', totalViolations.toString());
-        core.setOutput('summary', summaryLines.join('\n'));
-        // Summary
-        core.summary
-            .addHeading('SSL Audit Results')
-            .addRaw(`Processed ${files.length} file(s)`)
-            .addBreak()
-            .addRaw(`Total violations: ${totalViolations}`)
-            .addBreak()
-            .addBreak()
-            .addHeading('Details', 3);
-        summaryLines.forEach(line => {
-            core.summary.addRaw(line).addBreak();
-        });
-        await core.summary.write();
+        core.setOutput('summary', violationsFound ? `Found ${totalViolations} violations` : 'All checks passed');
         // Fail if requested and violations found
         if (failOnViolation && violationsFound) {
-            core.setFailed(`Found ${totalViolations} rule violation(s). Review the logs for details.`);
+            core.setFailed(`Found ${totalViolations} violations. Review the annotations for details.`);
         }
         else if (violationsFound) {
-            core.warning(`Found ${totalViolations} rule violation(s) but not failing (fail-on-violation is false)`);
+            core.warning(`Found ${totalViolations} violations but not failing (fail-on-violation is false)`);
         }
         else {
             core.info('✅ All audits passed!');

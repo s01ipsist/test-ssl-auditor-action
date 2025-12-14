@@ -43,30 +43,28 @@ async function run(): Promise<void> {
     // Process each file
     const auditEngine = new AuditEngine(rulesConfig);
     let totalViolations = 0;
-    const summaryLines: string[] = [];
 
     for (const filePath of files) {
       core.info(`Processing: ${filePath}`);
       try {
         const content = await readFile(filePath, 'utf-8');
         const results = JSON.parse(content);
-        const violations = auditEngine.audit(results);
 
-        if (violations.length > 0) {
-          core.warning(`Found ${violations.length} violation(s) in ${filePath}`);
-          violations.forEach(violation => {
-            core.warning(`  - ${violation.message}`);
-          });
-          totalViolations += violations.length;
-          summaryLines.push(`${filePath}: ${violations.length} violation(s)`);
-        } else {
-          core.info(`No violations found in ${filePath}`);
-          summaryLines.push(`${filePath}: PASS`);
+        // Get audit results for annotations
+        const auditResults = auditEngine.getAuditResults(results);
+
+        // Create annotations for each result
+        for (const result of auditResults) {
+          if (result.passed) {
+            core.notice(result.message);
+          } else {
+            core.error(result.message);
+            totalViolations++;
+          }
         }
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         core.error(`Failed to process ${filePath}: ${errorMessage}`);
-        summaryLines.push(`${filePath}: ERROR - ${errorMessage}`);
       }
     }
 
@@ -74,30 +72,17 @@ async function run(): Promise<void> {
     const violationsFound = totalViolations > 0;
     core.setOutput('violations-found', violationsFound.toString());
     core.setOutput('violation-count', totalViolations.toString());
-    core.setOutput('summary', summaryLines.join('\n'));
-
-    // Summary
-    core.summary
-      .addHeading('SSL Audit Results')
-      .addRaw(`Processed ${files.length} file(s)`)
-      .addBreak()
-      .addRaw(`Total violations: ${totalViolations}`)
-      .addBreak()
-      .addBreak()
-      .addHeading('Details', 3);
-
-    summaryLines.forEach(line => {
-      core.summary.addRaw(line).addBreak();
-    });
-
-    await core.summary.write();
+    core.setOutput(
+      'summary',
+      violationsFound ? `Found ${totalViolations} violations` : 'All checks passed'
+    );
 
     // Fail if requested and violations found
     if (failOnViolation && violationsFound) {
-      core.setFailed(`Found ${totalViolations} rule violation(s). Review the logs for details.`);
+      core.setFailed(`Found ${totalViolations} violations. Review the annotations for details.`);
     } else if (violationsFound) {
       core.warning(
-        `Found ${totalViolations} rule violation(s) but not failing (fail-on-violation is false)`
+        `Found ${totalViolations} violations but not failing (fail-on-violation is false)`
       );
     } else {
       core.info('✅ All audits passed!');

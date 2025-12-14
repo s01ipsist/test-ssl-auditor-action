@@ -5,7 +5,15 @@ import { TestSSLResults } from './types';
  */
 export interface Violation {
   rule: string;
-  severity: 'critical' | 'high' | 'medium' | 'low';
+  message: string;
+  details?: Record<string, unknown>;
+}
+/**
+ * Represents an audit result (pass or fail)
+ */
+export interface AuditResult {
+  rule: string;
+  passed: boolean;
   message: string;
   details?: Record<string, unknown>;
 }
@@ -15,6 +23,10 @@ export interface Violation {
 export declare class AuditEngine {
   private config;
   constructor(config: RulesConfig);
+  /**
+   * Helper function to format IP address suffix for messages
+   */
+  private formatIpSuffix;
   /**
    * Helper function to check if a finding indicates the protocol/cipher is offered
    * @param finding The finding string from testssl.sh
@@ -27,6 +39,12 @@ export declare class AuditEngine {
    * @returns Array of violations found
    */
   audit(results: TestSSLResults): Violation[];
+  /**
+   * Get comprehensive audit results for annotations (both pass and fail)
+   * @param results The testssl.sh JSON results (array of scan items)
+   * @returns Array of audit results with pass/fail status
+   */
+  getAuditResults(results: TestSSLResults): AuditResult[];
   /**
    * Check overall grade compliance
    */
@@ -43,4 +61,20 @@ export declare class AuditEngine {
    * Check for forward secrecy support
    */
   private checkForwardSecrecy;
+  /**
+   * Get overall grade audit results for annotations
+   */
+  private getOverallGradeResults;
+  /**
+   * Get TLS version audit results for annotations
+   */
+  private getTlsVersionResults;
+  /**
+   * Get blocked cipher audit results for annotations
+   */
+  private getBlockedCipherResults;
+  /**
+   * Get forward secrecy audit results for annotations
+   */
+  private getForwardSecrecyResults;
 }
