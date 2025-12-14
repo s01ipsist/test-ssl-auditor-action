@@ -11,6 +11,8 @@ jobs:
   test-expired-cert:
     name: Test Expired Certificate Detection
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     
     steps:
       - name: Checkout
@@ -54,6 +56,8 @@ jobs:
   test-low-grade:
     name: Test Low Grade Detection
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     
     steps:
       - name: Checkout
