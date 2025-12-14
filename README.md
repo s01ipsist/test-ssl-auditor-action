@@ -77,6 +77,8 @@ jobs:
           path: testssl_results_*.json
 ```
 
+Note: [Job Matrix has a Limit of 256 jobs / workflow run](https://docs.github.com/en/actions/reference/limits)
+
 ## Inputs
 
 | Input | Description | Required | Default |
