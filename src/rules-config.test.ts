@@ -33,7 +33,7 @@ describe('loadRulesConfig', () => {
     expect(config.rules.blockedCiphers).toEqual(['RC4']);
   });
 
-  it('should merge with default rules', async () => {
+  it('should not merge with default rules when config file is provided', async () => {
     const testConfig = {
       rules: {
         minTlsVersion: '1.3'
@@ -44,6 +44,27 @@ describe('loadRulesConfig', () => {
     const config = await loadRulesConfig(testConfigPath);
 
     expect(config.rules.minTlsVersion).toBe('1.3');
-    expect(config.rules.requireForwardSecrecy).toBe(DEFAULT_RULES.rules.requireForwardSecrecy);
+    // Other rules should be undefined when not specified in the config
+    expect(config.rules.requireForwardSecrecy).toBeUndefined();
+    expect(config.rules.blockedCiphers).toBeUndefined();
+  });
+
+  it('should only include configured rules from the file (issue example)', async () => {
+    const testConfig = {
+      rules: {
+        minGrade: 'B'
+      }
+    };
+
+    await writeFile(testConfigPath, JSON.stringify(testConfig));
+    const config = await loadRulesConfig(testConfigPath);
+
+    // Only minGrade should be set
+    expect(config.rules.minGrade).toBe('B');
+    // All other rules should be undefined
+    expect(config.rules.minTlsVersion).toBeUndefined();
+    expect(config.rules.requireForwardSecrecy).toBeUndefined();
+    expect(config.rules.blockedCiphers).toBeUndefined();
+    expect(config.rules.maxCertificateExpiry).toBeUndefined();
   });
 });

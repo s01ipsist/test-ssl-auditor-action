@@ -12,7 +12,7 @@ export interface RulesConfig {
   };
 }
 /**
- * Default rules configuration
+ * Default rules configuration - used only when no config file is provided
  */
 export declare const DEFAULT_RULES: RulesConfig;
 /**
