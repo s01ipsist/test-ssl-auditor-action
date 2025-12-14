@@ -136,6 +136,7 @@ The action supports evidence collection and enforcement for the following ISO 27
 - **A.5.14 (Information transfer)**: Verifies secure communication channels through TLS version and cipher checks
 - **A.8.24 (Use of cryptography)**: Enforces cryptographic standards by validating minimum TLS versions, blocking weak ciphers, and requiring forward secrecy
 - **A.8.9 (Configuration management)**: Provides continuous validation of security configurations with automated rule enforcement
+- **A.8.8 (Management of technical vulnerabilities)**: Identifies and monitors SSL/TLS vulnerabilities including weak ciphers, deprecated protocols, and certificate expiry issues
 - **A.5.37 (Documented operating procedures)**: Creates audit trails and violation reports that document security posture
 - **A.8.7 (Protection against malware)**: Prevents protocol downgrade attacks and ensures secure cipher usage
 
