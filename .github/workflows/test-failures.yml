@@ -1,0 +1,93 @@
+name: Test Failure Scenarios
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Run once a week on Mondays at 12:00 UTC
+    - cron: '0 12 * * MON'
+
+jobs:
+  # Test for expired certificate - should find violations but action should pass
+  test-expired-cert:
+    name: Test Expired Certificate Detection
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      
+      - name: Test SSL/TLS for expired certificate endpoint
+        uses: s01ipsist/test-ssl-action@main
+        with:
+          uri: 'expired.badssl.com'
+        continue-on-error: true
+      
+      - name: Audit SSL Results (should find violations but not fail)
+        id: audit
+        uses: s01ipsist/test-ssl-auditor-action@main
+        with:
+          results-path: 'testssl_results_*.json'
+          rules-config: '.testssl-rules.json'
+          fail-on-violation: 'false'
+      
+      - name: Verify violations were detected
+        run: |
+          if [ "${{ steps.audit.outputs.violations-found }}" != "true" ]; then
+            echo "❌ FAIL: Expected violations to be found for expired certificate"
+            exit 1
+          fi
+          if [ "${{ steps.audit.outputs.violation-count }}" -lt "1" ]; then
+            echo "❌ FAIL: Expected at least 1 violation"
+            exit 1
+          fi
+          echo "✅ PASS: Violations were correctly detected"
+          echo "Found ${{ steps.audit.outputs.violation-count }} violation(s)"
+      
+      - name: Upload results
+        uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: ssl-results-expired-cert
+          path: testssl_results_*.json
+
+  # Test for low grade - test endpoint with grade B but require grade A
+  test-low-grade:
+    name: Test Low Grade Detection
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      
+      - name: Test SSL/TLS for endpoint with lower grade
+        uses: s01ipsist/test-ssl-action@main
+        with:
+          uri: 'mozilla-old.badssl.com'
+      
+      - name: Audit SSL Results with strict grade requirement (should find violations but not fail)
+        id: audit
+        uses: s01ipsist/test-ssl-auditor-action@main
+        with:
+          results-path: 'testssl_results_*.json'
+          rules-config: '.testssl-rules.strict.json'
+          fail-on-violation: 'false'
+      
+      - name: Verify violations were detected
+        run: |
+          if [ "${{ steps.audit.outputs.violations-found }}" != "true" ]; then
+            echo "❌ FAIL: Expected violations to be found for low grade"
+            exit 1
+          fi
+          if [ "${{ steps.audit.outputs.violation-count }}" -lt "1" ]; then
+            echo "❌ FAIL: Expected at least 1 violation"
+            exit 1
+          fi
+          echo "✅ PASS: Violations were correctly detected"
+          echo "Found ${{ steps.audit.outputs.violation-count }} violation(s)"
+      
+      - name: Upload results
+        uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: ssl-results-low-grade
+          path: testssl_results_*.json
