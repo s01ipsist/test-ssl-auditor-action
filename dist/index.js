@@ -28109,6 +28109,10 @@ const GRADE_RANKING = {
     T: 1 // Trust issues (e.g., expired certificate)
 };
 /**
+ * Milliseconds in one day (for date calculations)
+ */
+const MILLISECONDS_PER_DAY = 1000 * 60 * 60 * 24;
+/**
  * Engine for auditing testssl.sh results against rules
  */
 class AuditEngine {
@@ -28120,6 +28124,20 @@ class AuditEngine {
      */
     formatIpSuffix(ip) {
         return ip ? ` [${ip}]` : '';
+    }
+    /**
+     * Helper function to parse certificate date from testssl.sh format
+     * @param dateString Date string in format "YYYY-MM-DD HH:mm"
+     * @param isNotAfter Whether this is a notAfter date (adds :59 seconds instead of :00)
+     * @returns Parsed Date object or null if invalid
+     */
+    parseCertificateDate(dateString, isNotAfter = false) {
+        // Parse dates (format: "YYYY-MM-DD HH:mm")
+        // Add seconds for notBefore (:00) and notAfter (:59)
+        const seconds = isNotAfter ? ':59' : ':00';
+        const isoString = dateString.replace(' ', 'T') + seconds + 'Z';
+        const date = new Date(isoString);
+        return isNaN(date.getTime()) ? null : date;
     }
     /**
      * Helper function to check if a finding indicates the protocol/cipher is offered
@@ -28164,6 +28182,10 @@ class AuditEngine {
         if (this.config.rules.requireForwardSecrecy) {
             violations.push(...this.checkForwardSecrecy(results));
         }
+        // Check certificate expiry
+        if (this.config.rules.maxCertificateExpiry !== undefined) {
+            violations.push(...this.checkCertificateExpiry(results));
+        }
         return violations;
     }
     /**
@@ -28191,6 +28213,10 @@ class AuditEngine {
         // Check forward secrecy
         if (this.config.rules.requireForwardSecrecy) {
             auditResults.push(...this.getForwardSecrecyResults(results));
+        }
+        // Check certificate expiry
+        if (this.config.rules.maxCertificateExpiry !== undefined) {
+            auditResults.push(...this.getCertificateExpiryResults(results));
         }
         return auditResults;
     }
@@ -28523,6 +28549,161 @@ class AuditEngine {
                     details: { finding: fsItem.finding, severity: fsItem.severity, ip: fsItem.ip }
                 });
             }
+        }
+        return auditResults;
+    }
+    /**
+     * Check certificate expiry compliance
+     */
+    checkCertificateExpiry(results) {
+        const violations = [];
+        const maxDays = this.config.rules.maxCertificateExpiry;
+        if (maxDays === undefined) {
+            return violations;
+        }
+        // Find certificate date items
+        const notBeforeItem = results.find(item => item.id === 'cert_notBefore');
+        const notAfterItem = results.find(item => item.id === 'cert_notAfter');
+        if (!notBeforeItem || !notAfterItem) {
+            return violations;
+        }
+        const notBefore = notBeforeItem.finding;
+        const notAfter = notAfterItem.finding;
+        if (!notBefore || !notAfter) {
+            return violations;
+        }
+        const ipSuffix = this.formatIpSuffix(notAfterItem.ip);
+        const now = new Date();
+        // Parse dates using helper method
+        const notBeforeDate = this.parseCertificateDate(notBefore, false);
+        const notAfterDate = this.parseCertificateDate(notAfter, true);
+        // Check if dates are valid
+        if (!notBeforeDate || !notAfterDate) {
+            violations.push({
+                rule: 'certificate-expiry',
+                message: `Invalid certificate date format${ipSuffix}`,
+                details: { notBefore, notAfter, ip: notAfterItem.ip }
+            });
+            return violations;
+        }
+        // Check if certificate is not yet valid
+        if (now < notBeforeDate) {
+            violations.push({
+                rule: 'certificate-expiry',
+                message: `Certificate is not yet valid (notBefore: ${notBefore})${ipSuffix}`,
+                details: { notBefore, notAfter, currentTime: now.toISOString(), ip: notAfterItem.ip }
+            });
+        }
+        // Check if certificate is expired
+        if (now > notAfterDate) {
+            violations.push({
+                rule: 'certificate-expiry',
+                message: `Certificate has expired (notAfter: ${notAfter})${ipSuffix}`,
+                details: { notBefore, notAfter, currentTime: now.toISOString(), ip: notAfterItem.ip }
+            });
+        }
+        // Check if certificate is expiring within the threshold
+        const daysUntilExpiry = (notAfterDate.getTime() - now.getTime()) / MILLISECONDS_PER_DAY;
+        if (daysUntilExpiry > 0 && daysUntilExpiry <= maxDays) {
+            violations.push({
+                rule: 'certificate-expiry',
+                message: `Certificate expires in ${Math.floor(daysUntilExpiry)} days (threshold: ${maxDays} days, notAfter: ${notAfter})${ipSuffix}`,
+                details: {
+                    notBefore,
+                    notAfter,
+                    daysUntilExpiry: Math.floor(daysUntilExpiry),
+                    maxDays,
+                    ip: notAfterItem.ip
+                }
+            });
+        }
+        return violations;
+    }
+    /**
+     * Get certificate expiry audit results for annotations
+     */
+    getCertificateExpiryResults(results) {
+        const auditResults = [];
+        const maxDays = this.config.rules.maxCertificateExpiry;
+        if (maxDays === undefined) {
+            return auditResults;
+        }
+        // Find certificate date items
+        const notBeforeItem = results.find(item => item.id === 'cert_notBefore');
+        const notAfterItem = results.find(item => item.id === 'cert_notAfter');
+        if (!notBeforeItem || !notAfterItem) {
+            return auditResults;
+        }
+        const notBefore = notBeforeItem.finding;
+        const notAfter = notAfterItem.finding;
+        if (!notBefore || !notAfter) {
+            return auditResults;
+        }
+        const ipSuffix = this.formatIpSuffix(notAfterItem.ip);
+        const now = new Date();
+        // Parse dates using helper method
+        const notBeforeDate = this.parseCertificateDate(notBefore, false);
+        const notAfterDate = this.parseCertificateDate(notAfter, true);
+        // Check if dates are valid
+        if (!notBeforeDate || !notAfterDate) {
+            auditResults.push({
+                rule: 'certificate-expiry',
+                passed: false,
+                message: `Invalid certificate date format${ipSuffix}`,
+                details: { notBefore, notAfter, ip: notAfterItem.ip }
+            });
+            return auditResults;
+        }
+        // Check if certificate is not yet valid
+        if (now < notBeforeDate) {
+            auditResults.push({
+                rule: 'certificate-expiry',
+                passed: false,
+                message: `Certificate is not yet valid (notBefore: ${notBefore})${ipSuffix}`,
+                details: { notBefore, notAfter, currentTime: now.toISOString(), ip: notAfterItem.ip }
+            });
+            return auditResults;
+        }
+        // Check if certificate is expired
+        if (now > notAfterDate) {
+            auditResults.push({
+                rule: 'certificate-expiry',
+                passed: false,
+                message: `Certificate has expired (notAfter: ${notAfter})${ipSuffix}`,
+                details: { notBefore, notAfter, currentTime: now.toISOString(), ip: notAfterItem.ip }
+            });
+            return auditResults;
+        }
+        // Check if certificate is expiring within the threshold
+        const daysUntilExpiry = (notAfterDate.getTime() - now.getTime()) / MILLISECONDS_PER_DAY;
+        if (daysUntilExpiry > 0 && daysUntilExpiry <= maxDays) {
+            auditResults.push({
+                rule: 'certificate-expiry',
+                passed: false,
+                message: `Certificate expires in ${Math.floor(daysUntilExpiry)} days (threshold: ${maxDays} days, notAfter: ${notAfter})${ipSuffix}`,
+                details: {
+                    notBefore,
+                    notAfter,
+                    daysUntilExpiry: Math.floor(daysUntilExpiry),
+                    maxDays,
+                    ip: notAfterItem.ip
+                }
+            });
+        }
+        else {
+            // Certificate is valid and not expiring soon
+            auditResults.push({
+                rule: 'certificate-expiry',
+                passed: true,
+                message: `Certificate is valid and expires in ${Math.floor(daysUntilExpiry)} days (threshold: ${maxDays} days)${ipSuffix}`,
+                details: {
+                    notBefore,
+                    notAfter,
+                    daysUntilExpiry: Math.floor(daysUntilExpiry),
+                    maxDays,
+                    ip: notAfterItem.ip
+                }
+            });
         }
         return auditResults;
     }
