@@ -26,12 +26,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      
+
       - name: Test SSL/TLS
         uses: s01ipsist/test-ssl-action@main
         with:
           uri: 'https://example.com/'
-      
+
       - name: Audit SSL Results
         uses: s01ipsist/test-ssl-auditor-action@main
         with:
@@ -57,18 +57,18 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      
+
       - name: Test SSL/TLS for ${{ matrix.uri }}
         uses: s01ipsist/test-ssl-action@main
         with:
           uri: ${{ matrix.uri }}
-      
+
       - name: Audit SSL Results
         uses: s01ipsist/test-ssl-auditor-action@main
         with:
           results-path: 'testssl_results_*.json'
           fail-on-violation: 'true'
-      
+
       - name: Upload results
         uses: actions/upload-artifact@v4
         if: always()
@@ -81,19 +81,19 @@ Note: [Job Matrix has a Limit of 256 jobs / workflow run](https://docs.github.co
 
 ## Inputs
 
-| Input | Description | Required | Default |
-|-------|-------------|----------|---------|
-| `results-path` | Path or glob pattern to testssl.sh JSON result files | Yes | `testssl_results_*.json` |
-| `rules-config` | Path to rules configuration file (JSON) | No | `.testssl-rules.json` |
-| `fail-on-violation` | Whether to fail the action if rule violations are found | No | `true` |
+| Input               | Description                                             | Required | Default                  |
+| ------------------- | ------------------------------------------------------- | -------- | ------------------------ |
+| `results-path`      | Path or glob pattern to testssl.sh JSON result files    | Yes      | `testssl_results_*.json` |
+| `rules-config`      | Path to rules configuration file (JSON)                 | No       | `.testssl-rules.json`    |
+| `fail-on-violation` | Whether to fail the action if rule violations are found | No       | `true`                   |
 
 ## Outputs
 
-| Output | Description |
-|--------|-------------|
+| Output             | Description                                             |
+| ------------------ | ------------------------------------------------------- |
 | `violations-found` | Whether any rule violations were found (`true`/`false`) |
-| `violation-count` | Number of rule violations found |
-| `summary` | Summary of the audit results |
+| `violation-count`  | Number of rule violations found                         |
+| `summary`          | Summary of the audit results                            |
 
 ## Rules Configuration
 
@@ -104,15 +104,7 @@ Create a `.testssl-rules.json` file in your repository to configure audit rules:
   "rules": {
     "minTlsVersion": "1.2",
     "allowedCiphers": [],
-    "blockedCiphers": [
-      "RC4",
-      "DES",
-      "3DES",
-      "NULL",
-      "EXPORT",
-      "anon",
-      "MD5"
-    ],
+    "blockedCiphers": ["RC4", "DES", "3DES", "NULL", "EXPORT", "anon", "MD5"],
     "requireForwardSecrecy": true,
     "maxCertificateExpiry": 14,
     "minGrade": "B"
@@ -132,6 +124,100 @@ Create a `.testssl-rules.json` file in your repository to configure audit rules:
 ## Examples
 
 See the [examples](./examples) directory for complete workflow examples.
+
+## Compliance Standards
+
+This action helps organizations meet control requirements for security compliance standards such as ISO 27001 and SOC2 by providing automated, continuous monitoring of SSL/TLS configurations.
+
+### ISO 27001 Controls
+
+The action supports evidence collection and enforcement for the following ISO 27001:2022 controls:
+
+- **A.5.14 (Information transfer)**: Verifies secure communication channels through TLS version and cipher checks
+- **A.8.24 (Use of cryptography)**: Enforces cryptographic standards by validating minimum TLS versions, blocking weak ciphers, and requiring forward secrecy
+- **A.8.9 (Configuration management)**: Provides continuous validation of security configurations with automated rule enforcement
+- **A.5.37 (Documented operating procedures)**: Creates audit trails and violation reports that document security posture
+- **A.8.7 (Protection against malware)**: Prevents protocol downgrade attacks and ensures secure cipher usage
+
+### SOC2 Trust Service Criteria
+
+The action provides automated controls that support the following SOC2 Trust Service Criteria:
+
+- **CC6.6 (Logical and Physical Access Controls - Encryption)**: Validates encryption-in-transit requirements by enforcing minimum TLS standards
+- **CC6.7 (System Operations - Transmission Security)**: Monitors and enforces secure data transmission configurations
+- **CC7.1 (System Operations - Detection and Monitoring)**: Provides continuous monitoring and detection of SSL/TLS configuration issues
+- **CC7.2 (System Operations - Response to Security Incidents)**: Generates immediate alerts when security violations are detected
+- **CC8.1 (Change Management)**: Validates that changes to SSL/TLS configurations meet security requirements
+
+### Compliance Implementation
+
+#### Basic Compliance Setup
+
+For organizations getting started with compliance, use the basic rule configuration:
+
+```yaml
+- name: Audit SSL for Compliance
+  uses: s01ipsist/test-ssl-auditor-action@main
+  with:
+    results-path: 'testssl_results_*.json'
+    rules-config: '.testssl-rules.basic.json' # Minimum grade B
+    fail-on-violation: 'true'
+```
+
+#### Strict Compliance Setup
+
+For organizations requiring strict security standards (PCI DSS, HIPAA, or higher SOC2 assurance):
+
+```json
+{
+  "rules": {
+    "minTlsVersion": "1.2",
+    "blockedCiphers": ["RC4", "DES", "3DES", "NULL", "EXPORT", "anon", "MD5"],
+    "requireForwardSecrecy": true,
+    "maxCertificateExpiry": 30,
+    "minGrade": "A"
+  }
+}
+```
+
+#### Audit Evidence Generation
+
+The action outputs provide compliance evidence that can be used during audits:
+
+- **Automated Test Records**: GitHub Actions logs provide timestamped evidence of continuous monitoring
+- **Violation Reports**: Detailed reports document any non-compliance and remediation
+- **Configuration Enforcement**: Rules configuration demonstrates defined security policies
+- **Continuous Compliance**: Regular execution proves ongoing adherence to security standards
+
+#### Best Practices for Compliance
+
+1. **Schedule Regular Scans**: Run SSL audits on every deployment and at scheduled intervals
+
+   ```yaml
+   on:
+     push:
+       branches: [main]
+     schedule:
+       - cron: '0 0 * * 0' # Weekly on Sunday
+   ```
+
+2. **Fail Builds on Violations**: Set `fail-on-violation: 'true'` to prevent non-compliant deployments
+
+3. **Archive Results**: Use `upload-artifact` to maintain audit records
+
+   ```yaml
+   - name: Archive SSL Results
+     uses: actions/upload-artifact@v4
+     if: always()
+     with:
+       name: ssl-audit-results
+       path: testssl_results_*.json
+       retention-days: 90 # Adjust per your compliance requirements
+   ```
+
+4. **Document Your Rules**: Commit your `.testssl-rules.json` to version control as evidence of your security policy
+
+5. **Review Regularly**: Schedule periodic reviews of your rules configuration to align with evolving security standards
 
 ## License
 
