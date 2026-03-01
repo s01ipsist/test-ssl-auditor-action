@@ -46,7 +46,7 @@ jobs:
           echo "Found ${{ steps.audit.outputs.violation-count }} violation(s)"
 
       - name: Upload results
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: ssl-results-expired-cert
@@ -90,7 +90,7 @@ jobs:
           echo "Found ${{ steps.audit.outputs.violation-count }} violation(s)"
 
       - name: Upload results
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: ssl-results-low-grade
